@@ -1,0 +1,21 @@
+iso3,pais,n33,n20,n14,n_panel,k_panel
+ARG,Argentina,0,47,63,54,18
+BOL,Bolivia,0,55,64,64,19
+BRA,Brasil,0,53,66,62,19
+CHL,Chile,0,54,65,64,18
+COL,Colombia,13,62,66,62,20
+CRI,Costa Rica,0,55,66,64,19
+CUB,Cuba,0,0,54,54,15
+DOM,Rep. Dominicana,0,57,66,64,19
+ECU,Ecuador,0,55,66,64,19
+GTM,Guatemala,0,55,66,64,19
+HND,Honduras,0,45,66,64,18
+HTI,Haiti,0,28,64,53,17
+MEX,Mexico,3,55,66,64,19
+NIC,Nicaragua,0,35,65,58,17
+PAN,Panama,0,32,64,64,18
+PER,Peru,16,62,66,62,20
+PRY,Paraguay,0,63,64,63,20
+SLV,El Salvador,0,53,60,59,19
+URY,Uruguay,0,55,66,64,19
+VEN,Venezuela,0,42,57,48,16

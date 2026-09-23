@@ -1,0 +1,17 @@
+# Entorno: 1 GB, lo reconstruye `uv sync` desde uv.lock
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Registros de corrida: se regeneran y ensucian los diffs
+salidas/*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Los parquet de datos/procesado y los CSV de salidas SI se versionan a proposito:
+# pesan 3 MB juntos y permiten leer los resultados sin correr nada ni tener red.
