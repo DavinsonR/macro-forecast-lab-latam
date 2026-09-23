@@ -18,14 +18,19 @@ bienestar). **Las 33 existen para Colombia.** Ese no es el problema.
 
 El problema es la intersección:
 
-| Variables exigidas | Años completos | Rango | n/p |
-|---|---|---|---|
-| 14 | 66 | 1960–2025 | 4,71 |
-| 20 | 62 | 1961–2024 | 3,10 |
-| 24 | 37 | 1987–2024 | 1,54 |
-| 28 | 34 | 1991–2024 | 1,21 |
-| 31 | 20 | 1999–2024 | 0,65 |
-| **33** | **13** | **2012–2024** | **0,39** |
+| Variables exigidas | Años completos | Tramo contiguo | Rango contiguo | n/p |
+|---|---|---|---|---|
+| 14 | 66 | 66 | 1960–2025 | 4,71 |
+| 18 | 64 | 64 | 1961–2024 | 3,56 |
+| 20 | 62 | 35 | 1990–2024 | 1,75 |
+| 24 | 37 | 35 | 1990–2024 | 1,46 |
+| 28 | 34 | 34 | 1991–2024 | 1,21 |
+| 31 | 20 | 17 | 2008–2024 | 0,55 |
+| **33** | **13** | **13** | **2012–2024** | **0,39** |
+
+"Tramo contiguo" es lo que un modelo de rezagos puede usar: los años completos que no
+tienen huecos en medio. Con 20 variables hay 62 años completos, pero los huecos de 1986 y
+1989 dejan solo 35 consecutivos. La versión 0.1.0 contaba los 62 (B-004).
 
 **Pedir las 33 variables a la vez deja 13 observaciones anuales.** Con 13 filas y 33
 columnas no se estima nada: hay más parámetros que datos, y cualquier modelo ajusta
@@ -42,7 +47,7 @@ Las cinco variables que estrangulan la muestra son del bloque de bienestar y fis
 | Pobreza extrema | 30 |
 
 Renunciar a esas cinco lleva la muestra de 13 a 34 años. Renunciar también al bloque
-laboral la lleva a 62. **Ese es el precio real de cada variable, y casi nunca se calcula
+laboral, al monetario y al externo la lleva a 64 contiguos, con 18 variables. **Ese es el precio real de cada variable, y casi nunca se calcula
 antes de modelar.**
 
 ### Consecuencia: dos pistas, no una
@@ -51,11 +56,11 @@ antes de modelar.**
 |---|---|---|
 | Objetivo | Crecimiento anual del PIB real | Variación anual del ISE |
 | Fuente | Banco Mundial | DANE, anexo ISE |
-| Observaciones | ~62 anuales | 246 mensuales |
-| Variables | ~20 macro | univariada |
+| Observaciones | 64 anuales contiguas | 246 mensuales |
+| Variables | 15 macro | univariada |
 | Para qué sirve | Modelos con exógenas, factores, regularización | Estacionalidad y redes neuronales |
 
-Las redes profundas solo se evalúan en serio en la Pista B. Con 62 observaciones
+Las redes profundas solo se evalúan en serio en la Pista B. Con 64 observaciones
 anuales, un LSTM no tiene de dónde aprender; se corre igual, y el resultado es parte de
 lo que el laboratorio reporta.
 
@@ -79,8 +84,13 @@ Reglas que el código hace cumplir:
   la serie completa, incluido el futuro respecto de cualquier origen: meterlo en un
   backtest sería mirar adelante.
 
-La comparación contra la referencia usa **Diebold-Mariano pareado**. Una diferencia de
-MAE sin prueba de significancia no distingue una mejora real del ruido de muestreo.
+- Los regímenes (calma, ruptura) se asignan por el **período pronosticado**, no por el
+  origen.
+- Una serie anual no salta años: se usa el tramo contiguo más largo.
+
+La comparación contra la referencia usa **Diebold-Mariano pareado**, con la p ajustada
+por **Holm** porque cada tabla prueba de 8 a 26 modelos a la vez. Entre países se usa
+Wilcoxon. Una diferencia de MAE sin prueba no distingue una mejora real del ruido.
 
 ---
 
@@ -105,16 +115,35 @@ ARIMA(1,1,1), ARIMA(2,1,0), ARIMA(2,1,2), y variantes con dummies de COVID.
 
 ## Uso
 
+Requiere [uv](https://docs.astral.sh/uv/) y Python 3.12.
+
 ```bash
 uv sync
-uv run python -m macro_lab.main
+uv run python -m macro_lab.main             # pistas A (anual COL) y B (ISE mensual)
+uv run python -m macro_lab.robustez         # partición por subperíodo
+uv run python -m macro_lab.lab_latam        # pistas C (trimestral) y D (anual, 20 países)
+uv run python -m macro_lab.lab_combinacion  # combinación por régimen
 ```
 
-El anexo ISE del DANE debe estar en `datos/crudo/anex-ISE-12actividades.xlsx`.
-Los datos del Banco Mundial se descargan solos y se cachean en `datos/procesado/`.
+Los datos van versionados en `datos/` (anexo ISE del DANE y caché del Banco Mundial y
+del FMI, descargados el 18-sep-2026), así que todo corre sin red. Las corridas completas
+tardan del orden de una hora en un portátil.
 
-Salidas en `salidas/`: `frontera_cobertura.csv`, `pista_a_resumen.csv`,
-`pista_b_resumen.csv` y el detalle por origen de cada pista.
+Salidas en `salidas/`: resúmenes con cobertura, `dm_p` y `dm_p_holm`; detalle por origen
+con el período pronosticado (`objetivo`); agregados LATAM; fronteras de cobertura.
+
+## Pruebas
+
+```bash
+uv run python -m pytest -q
+uv run ruff check
+```
+
+Las pruebas no miden si un modelo pronostica bien: comprueban que el protocolo no se
+engañe a sí mismo (nada ve el futuro, la cobertura filtra, el régimen se asigna por el
+período pronosticado, no hay años saltados, la combinación no rellena fallos). CI las
+corre en cada PR. Los errores encontrados y cómo se corrigieron están en
+[docs/BITACORA.md](docs/BITACORA.md).
 
 ---
 
@@ -128,9 +157,11 @@ Salidas en `salidas/`: `frontera_cobertura.csv`, `pista_a_resumen.csv`,
 - **No presenta un ganador sin decir por cuánto gana y si esa diferencia es
   significativa.**
 
-## Licencia de datos
+## Licencias
 
-Banco Mundial: CC BY 4.0. DANE: uso público con atribución.
+Código: MIT (`LICENSE`). Datos: Banco Mundial, CC BY 4.0; DANE, uso público con
+atribución; FMI International Financial Statistics, vía DBnomics, bajo los términos del
+FMI. Para citar el laboratorio: `CITATION.cff`.
 
 ---
 
@@ -138,10 +169,10 @@ Banco Mundial: CC BY 4.0. DANE: uso público con atribución.
 
 Ver **[RESULTADOS.md](RESULTADOS.md)** para las tablas completas. En una línea:
 
-> En la serie mensual y fuera del COVID, Random Forest y LSTM le ganan al pronóstico
-> ingenuo por 17–24 % con p < 0,03. Durante 2020–2021 caen al fondo de la tabla y ganan
-> AR(1) y el ingenuo. En la serie anual, con 62 observaciones, **ningún** modelo se
-> distingue del ingenuo — y añadir las 20 variables macro empeora el pronóstico.
+> Sobre la muestra completa, ningún modelo le gana al ingenuo de forma significativa
+> tras corregir por comparaciones múltiples. En la calma mensual sí: Random Forest
+> (+24 %) y tres ARIMA/ARMA, con p ajustada < 0,02. En la serie anual ningún modelo se
+> distingue del ingenuo, y añadir las variables macro empeora el pronóstico.
 
 ---
 
@@ -149,13 +180,8 @@ Ver **[RESULTADOS.md](RESULTADOS.md)** para las tablas completas. En una línea:
 
 20 países, el mismo protocolo. Ver **[RESULTADOS_LATAM.md](RESULTADOS_LATAM.md)**.
 
-> El hallazgo de Colombia **no se replicó: se invirtió**. Misma economía, mismo período de
-> ruptura, dos frecuencias, conclusiones opuestas y ambas significativas. La frontera de
-> cobertura sí generaliza, y es peor: en 18 de 20 países exigir las 33 variables deja cero
-> años completos. La combinación por régimen funciona donde hay datos para probarla (+17,3 %
-> sobre el ingenuo, con un interruptor que reacciona un mes tarde y no anticipa).
-
-```bash
-uv run python -m macro_lab.lab_latam
-uv run python -m macro_lab.lab_combinacion
-```
+> El resultado más robusto es modesto: **en calma, el AR(1) le gana al ingenuo en toda la
+> región** (8 de 8 países trimestrales; mediana 0,86 del error del ingenuo en 20 anuales,
+> Wilcoxon p = 0,001). Ningún ranking por país sobrevive a Holm. La combinación por
+> régimen que funcionaba en el ISE no se replica fuera de él. La frontera de cobertura sí
+> generaliza: en 17 de 20 países, exigir las 33 variables deja cero años completos.
