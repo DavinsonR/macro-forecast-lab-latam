@@ -39,12 +39,41 @@ def origen_movil(y: pd.Series, modelos: list[Modelo], h: int = 1,
             for paso in range(h):
                 filas.append(dict(
                     modelo=m.nombre, familia=m.familia, origen=str(y.index[t - 1]),
-                    paso=paso + 1, real=real[paso], pronostico=pron[paso],
+                    objetivo=str(y.index[t + paso]), paso=paso + 1,
+                    real=real[paso], pronostico=pron[paso],
                     error=pron[paso] - real[paso],
                 ))
         if verbose and total > 6 and (i + 1) % max(total // 6, 1) == 0:
             print(f"    {i + 1}/{total}")
     return pd.DataFrame(filas)
+
+
+def anio(etiqueta) -> int:
+    """Anio de una etiqueta de periodo: '2020', '2020Q1' o '2020-03-01'."""
+    return int(str(etiqueta)[:4])
+
+
+def regimen(detalle: pd.DataFrame, ruptura=(2020, 2021)) -> pd.Series:
+    """'ruptura' o 'calma' segun el anio del periodo PRONOSTICADO, no del origen.
+
+    El error de una fila es el del objetivo. Clasificar por el origen desplaza el regimen
+    un periodo: en datos anuales, el pronostico de la caida de 2020 (origen 2019) caia en
+    la calma. Ver B-002 en la bitacora.
+    """
+    anios = detalle.objetivo.map(anio)
+    return anios.isin(list(ruptura)).map({True: "ruptura", False: "calma"})
+
+
+def _holm(p: pd.Series) -> pd.Series:
+    """Ajuste de Holm-Bonferroni. Los NaN no cuentan como pruebas."""
+    validos = p.dropna().sort_values()
+    m = len(validos)
+    ajustada = pd.Series(np.nan, index=p.index)
+    acumulado = 0.0
+    for i, (idx, v) in enumerate(validos.items()):
+        acumulado = max(acumulado, min(1.0, (m - i) * v))
+        ajustada[idx] = acumulado
+    return ajustada
 
 
 def resumen(detalle: pd.DataFrame, referencia: str = "Ingenuo",
@@ -89,6 +118,8 @@ def resumen(detalle: pd.DataFrame, referencia: str = "Ingenuo",
 
     tabla = pd.DataFrame(filas)
     tabla["rankeable"] = tabla.cobertura >= min_cobertura
+    # Holm solo sobre los que compiten: los excluidos por cobertura no son pruebas.
+    tabla["dm_p_holm"] = _holm(tabla.dm_p.where(tabla.rankeable))
     # Los no rankeables caen al final sin competir por el primer puesto.
     return (tabla.sort_values(["rankeable", "mae"], ascending=[False, True],
                               na_position="last")
@@ -96,21 +127,24 @@ def resumen(detalle: pd.DataFrame, referencia: str = "Ingenuo",
 
 
 def imprimir(tabla: pd.DataFrame, titulo: str, referencia: str = "Ingenuo") -> None:
-    print(f"\n{'=' * 92}\n{titulo}\n{'=' * 92}")
+    print(f"\n{'=' * 100}\n{titulo}\n{'=' * 100}")
     print(f"{'#':>2s} {'modelo':30s} {'familia':14s} {'MAE':>7s} {'RMSE':>7s} "
-          f"{'vs ref':>8s} {'p':>7s} {'cobert':>7s}")
-    print("-" * 92)
+          f"{'vs ref':>8s} {'p':>7s} {'p Holm':>7s} {'cobert':>7s}")
+    print("-" * 100)
     for i, r in tabla.iterrows():
         gan = "  ref  " if r.modelo == referencia else (
             f"{r.ganancia_pct:+7.1f}%" if pd.notna(r.ganancia_pct) else "      -")
         p = f"{r.dm_p:7.3f}" if pd.notna(r.dm_p) else "      -"
+        ph = r.get("dm_p_holm", np.nan)
+        p_holm = f"{ph:7.3f}" if pd.notna(ph) else "      -"
         mae = f"{r.mae:7.3f}" if pd.notna(r.mae) else "      -"
         rmse = f"{r.rmse:7.3f}" if pd.notna(r.rmse) else "      -"
-        marca = " *" if pd.notna(r.dm_p) and r.dm_p < 0.05 and r.ganancia_pct > 0 else ""
+        marca = " *" if pd.notna(ph) and ph < 0.05 and r.ganancia_pct > 0 else ""
         if not r.get("rankeable", True):
             marca += "  <-- cobertura insuficiente, fuera del ordenamiento"
         cob = f"{r.get('cobertura', 1.0) * 100:6.0f}%"
         print(f"{i + 1:2d} {r.modelo[:30]:30s} {r.familia[:14]:14s} {mae} {rmse} "
-              f"{gan} {p} {cob}{marca}")
-    print("-" * 92)
-    print("* mejora sobre la referencia significativa al 5 % (Diebold-Mariano pareado)")
+              f"{gan} {p} {p_holm} {cob}{marca}")
+    print("-" * 100)
+    print("* mejora sobre la referencia significativa al 5 % tras Holm "
+          "(Diebold-Mariano pareado)")

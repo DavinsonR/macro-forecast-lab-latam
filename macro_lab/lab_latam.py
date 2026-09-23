@@ -10,10 +10,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+from scipy import stats
 
 from . import backtest, combinacion, datos, latam
-from .modelos import Modelo, _naive, _deriva, _red, _sarimax, _supervisado
+from .modelos import Modelo, _deriva, _naive, _red, _sarimax, _supervisado
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -50,10 +52,6 @@ def catalogo_latam() -> list[Modelo]:
     return M + combinacion.catalogo_combinaciones()
 
 
-def _anio(origen: str) -> int:
-    return int(str(origen)[:4])
-
-
 def corrida_pais(y: pd.Series, etiqueta: str, min_entrenamiento: int) -> pd.DataFrame:
     if len(y) < min_entrenamiento + 8:
         print(f"  {etiqueta:18s} serie corta ({len(y)}), se omite")
@@ -69,10 +67,9 @@ def corrida_pais(y: pd.Series, etiqueta: str, min_entrenamiento: int) -> pd.Data
 
 
 def tabla_por_regimen(detalle: pd.DataFrame, titulo: str) -> pd.DataFrame:
-    """Por pais y por regimen: que familia gana."""
+    """Por pais y por regimen (del periodo pronosticado): que familia gana."""
     detalle = detalle.copy()
-    detalle["anio"] = detalle.origen.map(_anio)
-    detalle["regimen"] = detalle.anio.isin(RUPTURA).map({True: "ruptura", False: "calma"})
+    detalle["regimen"] = backtest.regimen(detalle, RUPTURA)
 
     filas = []
     for (iso3, reg), g in detalle.groupby(["iso3", "regimen"]):
@@ -85,21 +82,23 @@ def tabla_por_regimen(detalle: pd.DataFrame, titulo: str) -> pd.DataFrame:
         filas.append(dict(
             iso3=iso3, regimen=reg, mejor=top.modelo, familia=top.familia,
             mae=top.mae, mae_ingenuo=float(ing.mae.iloc[0]) if len(ing) else None,
-            ganancia_pct=top.ganancia_pct, p=top.dm_p, n=int(top.n),
+            ganancia_pct=top.ganancia_pct, p=top.dm_p, p_holm=top.dm_p_holm,
+            n=int(top.n),
         ))
     tabla = pd.DataFrame(filas)
 
-    print(f"\n{'=' * 98}\n{titulo}\n{'=' * 98}")
+    print(f"\n{'=' * 106}\n{titulo}\n{'=' * 106}")
     print(f"{'pais':6s} {'regimen':9s} {'mejor modelo':24s} {'familia':14s} "
-          f"{'MAE':>7s} {'ingenuo':>8s} {'gana':>7s} {'p':>7s}")
-    print("-" * 98)
+          f"{'MAE':>7s} {'ingenuo':>8s} {'gana':>7s} {'p':>7s} {'p Holm':>7s}")
+    print("-" * 106)
     for _, r in tabla.sort_values(["iso3", "regimen"]).iterrows():
         gan = f"{r.ganancia_pct:+6.1f}%" if pd.notna(r.ganancia_pct) else "     -"
         p = f"{r.p:7.3f}" if pd.notna(r.p) else "      -"
+        ph = f"{r.p_holm:7.3f}" if pd.notna(r.p_holm) else "      -"
         ing = f"{r.mae_ingenuo:8.3f}" if pd.notna(r.mae_ingenuo) else "       -"
         print(f"{r.iso3:6s} {r.regimen:9s} {r.mejor[:24]:24s} {r.familia[:14]:14s} "
-              f"{r.mae:7.3f} {ing} {gan} {p}")
-    print("-" * 98)
+              f"{r.mae:7.3f} {ing} {gan} {p} {ph}")
+    print("-" * 106)
 
     print("\n--- Cuantas veces gana cada familia ---")
     conteo = (tabla.groupby(["regimen", "familia"]).size()
@@ -108,48 +107,91 @@ def tabla_por_regimen(detalle: pd.DataFrame, titulo: str) -> pd.DataFrame:
     return tabla
 
 
-def ranking_agregado(detalle: pd.DataFrame, titulo: str) -> pd.DataFrame:
-    """MAE relativo al ingenuo, promediado entre paises.
+def _wilcoxon(v: pd.Series) -> float:
+    """Wilcoxon de rangos con signo sobre log(MAE relativo) contra cero."""
+    v = np.log(v.dropna().astype(float))
+    v = v[v != 0]
+    return float(stats.wilcoxon(v).pvalue) if len(v) >= 6 else np.nan
 
-    Se normaliza por pais antes de promediar: Argentina y Venezuela tienen una
-    volatilidad que es un orden de magnitud mayor que la de Chile, y un promedio crudo de
-    MAE seria un promedio de las volatilidades nacionales, no de la calidad de los modelos.
+
+def relativo_por_pais(detalle: pd.DataFrame) -> pd.DataFrame:
+    """Por pais, regimen y modelo: MAE relativo al ingenuo y si la mejora es significativa.
+
+    Solo entran modelos con cobertura suficiente: sin ella el MAE saldria de los origenes
+    faciles (R-07).
     """
     detalle = detalle.copy()
-    detalle["anio"] = detalle.origen.map(_anio)
-    detalle["regimen"] = detalle.anio.isin(RUPTURA).map({True: "ruptura", False: "calma"})
+    detalle["regimen"] = backtest.regimen(detalle, RUPTURA)
 
     filas = []
     for (iso3, reg), g in detalle.groupby(["iso3", "regimen"]):
-        mae = g.groupby("modelo").error.apply(lambda e: e.abs().mean())
-        cob = g.groupby("modelo").error.apply(lambda e: e.notna().mean())
-        base = mae.get("Ingenuo")
-        if base is None or not pd.notna(base) or base == 0:
+        r = backtest.resumen(g).set_index("modelo")
+        if "Ingenuo" not in r.index:
             continue
-        for modelo, v in mae.items():
-            # Sin cobertura no hay comparacion: el MAE saldria de los origenes faciles.
-            if cob.get(modelo, 0) < 0.90:
+        base = r.loc["Ingenuo", "mae"]
+        if not pd.notna(base) or base == 0:
+            continue
+        for modelo, fila in r.iterrows():
+            if not fila.rankeable:
                 continue
-            filas.append(dict(iso3=iso3, regimen=reg, modelo=modelo, mae_rel=v / base))
+            gana_sig = bool(pd.notna(fila.dm_p) and fila.dm_p < 0.05
+                            and fila.ganancia_pct > 0)
+            filas.append(dict(iso3=iso3, regimen=reg, modelo=modelo,
+                              mae_rel=fila.mae / base, dm_p=fila.dm_p, gana_sig=gana_sig))
+    return pd.DataFrame(filas)
 
-    rel = pd.DataFrame(filas)
-    pivote = (rel.pivot_table(index="modelo", columns="regimen", values="mae_rel",
-                              aggfunc="median")
-              .sort_values("calma"))
 
-    print(f"\n{'=' * 78}\n{titulo}\n"
+def ranking_agregado(rel: pd.DataFrame, titulo: str) -> pd.DataFrame:
+    """MAE relativo al ingenuo, mediana entre paises, con su prueba.
+
+    Se normaliza por pais antes de agregar: Argentina y Venezuela tienen una volatilidad
+    que es un orden de magnitud mayor que la de Chile, y un promedio crudo de MAE seria un
+    promedio de las volatilidades nacionales, no de la calidad de los modelos.
+
+    La significancia (R-06) va en dos niveles: por pais, cuantos dan una mejora con
+    Diebold-Mariano p < 0,05; entre paises, Wilcoxon sobre log(MAE relativo). Los paises
+    son las observaciones independientes.
+    """
+    agregado = rel.groupby(["modelo", "regimen"]).agg(
+        mediana=("mae_rel", "median"), n_paises=("mae_rel", "size"),
+        paises_sig=("gana_sig", "sum"), p_wilcoxon=("mae_rel", _wilcoxon))
+    pivote = agregado.unstack("regimen")
+    pivote.columns = [f"{m}_{r}" for m, r in pivote.columns]
+    pivote = pivote.sort_values("mediana_calma")
+
+    print(f"\n{'=' * 88}\n{titulo}\n"
           f"MAE mediano relativo al ingenuo (1,00 = igual que el ingenuo; menor es mejor)\n"
-          f"{'=' * 78}")
-    print(f"{'modelo':28s} {'calma':>9s} {'ruptura':>9s} {'diferencia':>11s}")
-    print("-" * 78)
+          f"{'=' * 88}")
+    print(f"{'modelo':28s} {'calma':>8s} {'p Wilc':>7s} {'sig/n':>7s}   "
+          f"{'ruptura':>8s} {'p Wilc':>7s} {'sig/n':>7s}")
+    print("-" * 88)
+
+    def bloque(r, reg):
+        med, pw = r.get(f"mediana_{reg}"), r.get(f"p_wilcoxon_{reg}")
+        n, sig = r.get(f"n_paises_{reg}"), r.get(f"paises_sig_{reg}")
+        if not pd.notna(med):
+            return f"{'-':>8s} {'-':>7s} {'-':>7s}"
+        pw_t = f"{pw:7.3f}" if pd.notna(pw) else f"{'-':>7s}"
+        conteo = f"{int(sig)}/{int(n)}"
+        return f"{med:8.3f} {pw_t} {conteo:>7s}"
+
     for modelo, r in pivote.iterrows():
-        calma, rup = r.get("calma"), r.get("ruptura")
-        c_txt = f"{calma:9.3f}" if pd.notna(calma) else f"{'-':>9s}"
-        r_txt = f"{rup:9.3f}" if pd.notna(rup) else f"{'-':>9s}"
-        dif = f"{rup - calma:+11.2f}" if pd.notna(calma) and pd.notna(rup) else f"{'-':>11s}"
-        print(f"{modelo[:28]:28s} {c_txt} {r_txt} {dif}")
-    print("-" * 78)
+        print(f"{modelo[:28]:28s} {bloque(r, 'calma')}   {bloque(r, 'ruptura')}")
+    print("-" * 88)
+    print("p Wilc: Wilcoxon entre paises sobre log(MAE relativo). "
+          "sig/n: paises con mejora DM p < 0,05 / paises evaluados.")
     return pivote
+
+
+def _cerrar(detalle: pd.DataFrame, pista: str, nombre: str) -> None:
+    detalle.to_csv(SALIDAS / f"pista_{pista}_detalle.csv", index=False)
+    tabla = tabla_por_regimen(detalle, f"PISTA {pista.upper()} - mejor modelo por pais "
+                                       f"y regimen ({nombre})")
+    tabla.to_csv(SALIDAS / f"pista_{pista}_por_pais.csv", index=False)
+    rel = relativo_por_pais(detalle)
+    rel.to_csv(SALIDAS / f"pista_{pista}_relativo_pais.csv", index=False)
+    pivote = ranking_agregado(rel, f"PISTA {pista.upper()} - agregado LATAM")
+    pivote.to_csv(SALIDAS / f"pista_{pista}_agregado.csv")
 
 
 def pista_c() -> None:
@@ -161,6 +203,10 @@ def pista_c() -> None:
     if trim.empty:
         print("! sin datos trimestrales")
         return
+    ajustadas = sorted(trim.loc[trim.ajuste == "ajustada", "iso3"].unique())
+    if ajustadas:
+        print(f"  AVISO R-05: serie ajustada estacionalmente (sin alternativa en el IFS) "
+              f"en {len(ajustadas)} paises: {', '.join(ajustadas)}")
 
     partes = []
     for iso3 in sorted(trim.iso3.unique()):
@@ -168,11 +214,27 @@ def pista_c() -> None:
         partes.append(corrida_pais(y, iso3, min_entrenamiento=40))
 
     detalle = pd.concat([p for p in partes if not p.empty], ignore_index=True)
-    detalle.to_csv(SALIDAS / "pista_c_detalle.csv", index=False)
+    _cerrar(detalle, "c", "trimestral")
 
-    tabla_por_regimen(detalle, "PISTA C - mejor modelo por pais y regimen (trimestral)")
-    pivote = ranking_agregado(detalle, "PISTA C - agregado LATAM")
-    pivote.to_csv(SALIDAS / "pista_c_agregado.csv")
+
+def frontera_latam(largo: pd.DataFrame) -> pd.DataFrame:
+    """La frontera de cobertura de cada pais, medida antes de modelar (R-08).
+
+    `n33`, `n20`, `n14`: anios completos al exigir las k variables de mayor cobertura del
+    pais. `n_panel` x `k_panel`: el panel contiguo mas grande con n/p >= 3.
+    """
+    filas = []
+    for iso3, sub in largo.groupby("iso3"):
+        ancho = sub.pivot_table(index="anio", columns="variable", values="valor")
+        cobertura = ancho.notna().sum().sort_values(ascending=False)
+        fila = dict(iso3=iso3, pais=sub.pais.iloc[0])
+        for k in (33, 20, 14):
+            fila[f"n{k}"] = (len(ancho[list(cobertura.index[:k])].dropna())
+                             if len(cobertura) >= k else 0)
+        panel, _ = latam.panel_pais(largo, iso3, min_ratio=3.0)
+        fila.update(n_panel=len(panel), k_panel=panel.shape[1])
+        filas.append(fila)
+    return pd.DataFrame(filas)
 
 
 def pista_d() -> None:
@@ -181,21 +243,24 @@ def pista_d() -> None:
     print("#" * 98)
 
     largo = latam.descargar_anual_latam(datos.INDICADORES)
+    frontera = frontera_latam(largo)
+    frontera.to_csv(SALIDAS / "frontera_latam.csv", index=False)
+    print(f"  frontera: con 33 variables, {int((frontera.n33 == 0).sum())} de "
+          f"{len(frontera)} paises quedan con cero anios completos")
     partes = []
     for iso3 in sorted(largo.iso3.unique()):
-        panel, _ = latam.panel_pais(largo, iso3, min_ratio=3.0)
-        if panel.empty or "pib_crecimiento" not in panel.columns:
-            print(f"  {iso3:18s} sin panel viable")
+        # El catalogo es univariado: el objetivo no se recorta al panel de ~20 variables,
+        # que solo decide la muestra de los modelos que las usan (B-005).
+        serie = (largo[(largo.iso3 == iso3) & (largo.variable == "pib_crecimiento")]
+                 .set_index("anio").valor.sort_index())
+        y = datos.tramo_contiguo(serie).rename(iso3)
+        if y.empty:
+            print(f"  {iso3:18s} sin serie de crecimiento")
             continue
-        y = panel["pib_crecimiento"]
         partes.append(corrida_pais(y, iso3, min_entrenamiento=30))
 
     detalle = pd.concat([p for p in partes if not p.empty], ignore_index=True)
-    detalle.to_csv(SALIDAS / "pista_d_detalle.csv", index=False)
-
-    tabla_por_regimen(detalle, "PISTA D - mejor modelo por pais y regimen (anual)")
-    pivote = ranking_agregado(detalle, "PISTA D - agregado LATAM")
-    pivote.to_csv(SALIDAS / "pista_d_agregado.csv")
+    _cerrar(detalle, "d", "anual")
 
 
 def main() -> None:

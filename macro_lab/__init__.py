@@ -1,3 +1,3 @@
-"""Laboratorio de modelos de pronostico para el crecimiento economico de Colombia."""
+"""Laboratorio de pronostico del crecimiento economico: Colombia y America Latina."""
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
