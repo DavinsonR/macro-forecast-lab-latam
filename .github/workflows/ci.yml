@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Entorno desde uv.lock
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check
+      - name: Pruebas del protocolo
+        run: uv run python -m pytest -q

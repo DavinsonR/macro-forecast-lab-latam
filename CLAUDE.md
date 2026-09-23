@@ -33,6 +33,8 @@ con su significancia**, no un pronóstico publicado.
   reporta como hipótesis, no como conclusión.
 - **R-11** Antes de arreglar un error, entrada en `docs/BITACORA.md` con id, causa raíz y
   la regla que lo habría evitado. Después, el arreglo.
+- **R-12** Todo corte por subperíodo usa el período **pronosticado** (`objetivo`), vía
+  `backtest.regimen`. El origen es el último dato visto, no el error que se mide.
 
 ## Comandos
 
@@ -44,16 +46,26 @@ uv run python -m macro_lab.lab_latam      # pistas C (trimestral) y D (anual, 20
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
 ```
 
-No hay suite de pruebas. La puerta de calidad es la columna de cobertura y la de `p`.
+```bash
+uv run python -m pytest -q                # invariantes del protocolo, sin red, segundos
+uv run ruff check                         # lint (no se impone ruff format)
+```
+
+Las pruebas (`tests/`) protegen el protocolo, no la calidad del pronóstico: nada ve el
+futuro, la cobertura filtra, el régimen se asigna por el período pronosticado, no hay
+años saltados. La puerta de calidad de los resultados sigue siendo la columna de
+cobertura y la de `p` (cruda y ajustada por Holm). CI corre ambas en cada PR.
 
 ## Dónde está qué
 
 - `macro_lab/datos.py` — Banco Mundial (33 indicadores) y parser del anexo ISE del DANE
 - `macro_lab/latam.py` — 20 países: anual del Banco Mundial, trimestral del FMI vía DBnomics
 - `macro_lab/modelos.py` — el zoológico, todos tras la misma interfaz `predecir(y, h, X)`
-- `macro_lab/backtest.py` — origen móvil, resumen con cobertura y Diebold-Mariano
+- `macro_lab/backtest.py` — origen móvil, resumen con cobertura, Diebold-Mariano y Holm,
+  `regimen()` por período pronosticado
 - `macro_lab/combinacion.py` — pesos por régimen; el interruptor solo mira el pasado
 - `macro_lab/robustez.py`, `lab_latam.py`, `lab_combinacion.py` — corridas
+- `tests/` — pruebas del protocolo con datos sintéticos
 - `salidas/` — resultados versionados: resúmenes, agregados y detalle por origen
 
 ## Resultados y su fragilidad
