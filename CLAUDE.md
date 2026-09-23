@@ -1,4 +1,4 @@
-# CLAUDE.md · macro-lab-colombia
+# CLAUDE.md · macro-forecast-lab-latam
 
 Laboratorio de pronóstico del crecimiento económico agregado: Colombia y 20 países de
 América Latina. Compara AR, MA, ARMA, ARIMA, SARIMAX, VAR, regularizados, árboles, MLP,

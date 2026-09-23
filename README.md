@@ -1,8 +1,8 @@
-# macro-lab-colombia
+# macro-forecast-lab-latam
 
-Laboratorio de modelos de pronóstico para el crecimiento económico agregado de Colombia.
-Compara la escalera completa — desde la caminata aleatoria hasta LSTM y CNN — bajo un
-único protocolo de evaluación con origen móvil.
+Laboratorio de modelos de pronóstico del crecimiento económico agregado: Colombia en
+detalle y 20 países de América Latina. Compara la escalera completa — desde la caminata
+aleatoria hasta LSTM y CNN — bajo un único protocolo de evaluación con origen móvil.
 
 **La pregunta que responde no es "¿qué modelo predice el crecimiento?" sino "¿alguno de
 estos modelos le gana al pronóstico ingenuo, y con qué margen?".** Son preguntas

@@ -1,7 +1,7 @@
 [project]
-name = "macro-lab-colombia"
+name = "macro-forecast-lab-latam"
 version = "0.1.0"
-description = "Laboratorio de modelos de pronostico para el crecimiento economico agregado de Colombia"
+description = "Laboratorio de modelos de pronostico del crecimiento economico agregado: Colombia y America Latina"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pandas>=2.2",
