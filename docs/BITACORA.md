@@ -188,3 +188,73 @@ vez de volver a correr. Una combinación 50/50 fija queda sin probar.
 
 **Regla que lo habría evitado.** R-08 aplicada a los modelos: antes de interpretar una
 combinación se mira su rastro de pesos, no solo su error.
+
+---
+
+## D-007 · Experimento: ISE remuestreado a trimestral (pre-registro, 23-sep-2026)
+
+Escrito **antes** de correr, para que el resultado no se pueda reinterpretar después.
+
+**Pregunta.** En la ruptura de Colombia, el LSTM pierde contra el ingenuo con el ISE
+mensual (−62,2 %) y gana con el PIB trimestral del FMI (+21,0 %). Las dos series
+difieren en tres cosas a la vez: frecuencia, fuente y ajuste estacional (el ISE va sin
+ajuste; el FMI, ajustado, B-003). El experimento las separa.
+
+**Brazos**, los tres trimestrales, en variación interanual y sobre la misma muestra
+(2006T1–2025T1, 37 orígenes). Todos usan el catálogo de la Pista C sin retocar y
+`min_entrenamiento = 40`:
+
+| Brazo | Serie | Ajuste | Contraste |
+|---|---|---|---|
+| A | ISE Cuadro 1, promedio trimestral del índice | sin ajuste | A vs ISE mensual: frecuencia |
+| B | ISE Cuadro 2, promedio trimestral del índice | ajustado | A vs B: ajuste |
+| C | PIB real FMI | ajustado | B vs C: fuente |
+
+El promedio trimestral de un índice mensual agrega de alta a baja frecuencia; no
+rellena nada (R-03). El brazo B usa una serie ajustada a propósito, porque el ajuste es
+justo lo que se quiere medir. Es un control diagnóstico, no un resultado de pronóstico
+(R-05). El brazo C debe reproducir la Pista C de Colombia (LSTM +21,0 % en la ruptura):
+si no la reproduce, el experimento no vale.
+
+**Predicciones**, sobre el signo de la ganancia del LSTM contra el ingenuo en la ruptura
+(objetivos 2020–2021):
+
+- Si manda la **frecuencia**: A gana, como C.
+- Si manda el **ajuste**: A pierde y B gana.
+- Si manda la **fuente**: A y B pierden y solo C gana.
+- Cualquier otro patrón (por ejemplo, A gana y B pierde) queda como no concluyente.
+
+**Límite declarado de antemano.** La ruptura tiene 8 trimestres por brazo. Ninguna
+diferencia va a ser significativa tras Holm. El resultado será de dirección, y como la
+partición 2020–2021 se eligió después de ver los datos, es hipótesis (R-10) sea cual sea.
+
+### D-007 · Resultado (corrida del 23-sep-2026)
+
+**Validación.** El brazo C reproduce la Pista C de Colombia: LSTM +21,0 %, p = 0,027. El
+experimento vale.
+
+Ganancia del LSTM sobre el ingenuo en la ruptura (8 trimestres por brazo):
+
+| Brazo | LSTM vs ingenuo | p | p Holm |
+|---|---|---|---|
+| ISE mensual sin ajuste (Pista B, referencia) | −62,2 % | 0,019 | 0,24 |
+| A · ISE trimestral sin ajuste | +21,8 % | 0,049 | 0,59 |
+| B · ISE trimestral ajustado | +17,6 % | 0,094 | 1,00 |
+| C · PIB FMI ajustado | +21,0 % | 0,027 | 0,33 |
+
+**Regla pre-registrada: manda la frecuencia.** Con el mismo ISE sin ajustar, pasar de
+mensual a trimestral invierte el signo. Ni el ajuste (A contra B) ni la fuente (B contra
+C) lo mueven. En variación interanual las tres series trimestrales son casi la misma
+(correlación ≥ 0,996).
+
+**Mecanismo (hallado después de correr, así que es lectura, no predicción).** La que
+cambia es la referencia, no la red. El MAE del LSTM en la ruptura es parecido en las dos
+frecuencias (6,5 pp mensual; 6,0 pp trimestral). El del ingenuo va de 4,0 pp a un mes
+vista a 7,7 pp a un trimestre vista. En plena caída, "igual que el mes pasado" es muy
+difícil de batir y "igual que el trimestre pasado" no. La "frecuencia" que manda es, en
+concreto, **cuánto se aleja el horizonte de un paso**.
+
+**Límites.** Nada es significativo tras Holm. La partición 2020–2021 se eligió después de
+ver los datos (R-10). Y la hipótesis de 0.1.0 ("con datos trimestrales la red se adapta
+más rápido") **queda descartada** en su forma original: la red no mejora, empeora la
+referencia.
