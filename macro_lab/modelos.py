@@ -20,8 +20,6 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-warnings.filterwarnings("ignore")
-
 
 @dataclass
 class Modelo:
@@ -35,7 +33,11 @@ class Modelo:
 
     def predecir(self, y: pd.Series, h: int, X: pd.DataFrame | None = None) -> np.ndarray:
         try:
-            salida = self.fn(y, h, X, **self.params)
+            # Los avisos de convergencia se silencian solo aqui, no en todo el proceso:
+            # el fallo real ya queda como NaN y se cuenta en la cobertura.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                salida = self.fn(y, h, X, **self.params)
             salida = np.asarray(salida, dtype=float).ravel()
             if salida.shape[0] != h or not np.all(np.isfinite(salida)):
                 return np.full(h, np.nan)
@@ -76,9 +78,13 @@ def _sarimax(y, h, X=None, order=(1, 0, 0), seasonal_order=(0, 0, 0, 0),
     piezas, piezas_fut = [], []
 
     if usar_x and X is not None:
-        alineado = X.reindex(y.index).ffill()
-        piezas.append(alineado.to_numpy(dtype=float))
-        piezas_fut.append(np.repeat(alineado.to_numpy(dtype=float)[-1:], h, axis=0))
+        # Regresores rezagados un periodo: y_t se explica con X_{t-1}. Asi el modelo que
+        # se ajusta es el mismo que se usa en el origen, donde el ultimo X conocido es el
+        # del propio origen (B-007). La primera observacion se pierde.
+        alineado = X.reindex(y.index).ffill().to_numpy(dtype=float)
+        y = y.iloc[1:]
+        piezas.append(alineado[:-1])
+        piezas_fut.append(np.repeat(alineado[-1:], h, axis=0))
 
     if covid:
         d = _dummies_covid(y.index)
@@ -117,8 +123,8 @@ def _var(y, h, X=None, maxlags=2, n_vars=4):
 
 def _dummies_covid(idx) -> np.ndarray:
     """Dos columnas: caida 2020 y rebote 2021. Sin esto el ARIMA aprende un ciclo falso."""
-    if isinstance(idx, pd.DatetimeIndex):
-        anios = idx.year.to_numpy()
+    if isinstance(idx, (pd.DatetimeIndex, pd.PeriodIndex)):
+        anios = np.asarray(idx.year)
     else:
         anios = np.asarray(idx, dtype=int)
     return np.column_stack([(anios == 2020).astype(float), (anios == 2021).astype(float)])

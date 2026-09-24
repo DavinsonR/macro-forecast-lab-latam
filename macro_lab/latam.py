@@ -11,9 +11,13 @@ Dos pistas, igual que en Colombia:
                  indicador mensual (IMACEC, IGAE, EMAE, IBC-Br) con definiciones que no
                  son comparables entre si.
 
-Se usa la serie SIN ajuste estacional y se trabaja en variacion interanual. El ajuste
-estacional de las fuentes se reestima con la serie completa, asi que meterlo en un
-backtest con origen movil seria mirar adelante.
+Se trabaja en variacion interanual. La regla (R-05) es preferir la serie SIN ajuste
+estacional, porque el ajuste se reestima con la serie completa y mete futuro en el
+backtest. **Excepcion declarada (B-003):** para los 8 paises con serie trimestral util,
+el IFS solo publica la version ajustada (`NGDP_R_SA_XDC`); no hay alternativa sin ajustar
+en la misma fuente. Se usa la ajustada, la columna `ajuste` del parquet lo registra y la
+corrida lo imprime. Consecuencia: los errores de la Pista C pueden ser algo optimistas
+para todos los modelos por igual, porque el filtro estacional ya vio el futuro.
 """
 
 from __future__ import annotations
@@ -26,6 +30,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from .datos import tramo_contiguo
 
 RAIZ = Path(__file__).resolve().parent.parent
 PROC = RAIZ / "datos" / "procesado"
@@ -100,7 +106,7 @@ def panel_pais(largo: pd.DataFrame, iso3: str, min_ratio: float = 3.0
     cobertura = ancho.notna().sum().sort_values(ascending=False)
     elegidas, mejor = [], None
     for k in range(3, len(cobertura) + 1):
-        sub = ancho[list(cobertura.index[:k])].dropna()
+        sub = tramo_contiguo(ancho[list(cobertura.index[:k])].dropna())
         if len(sub) / k >= min_ratio:
             mejor, elegidas = sub, list(cobertura.index[:k])
     if mejor is None:
@@ -126,7 +132,7 @@ def _serie_dbnomics(sid: str) -> pd.Series | None:
     if not docs:
         return None
     o = docs[0]
-    pares = [(p, v) for p, v in zip(o["period"], o["value"]) if v is not None]
+    pares = [(p, v) for p, v in zip(o["period"], o["value"], strict=True) if v is not None]
     if not pares:
         return None
     idx = pd.PeriodIndex([p for p, _ in pares], freq="Q")

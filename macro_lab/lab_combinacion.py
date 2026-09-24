@@ -55,35 +55,39 @@ def main() -> None:
 
     detalle = backtest.origen_movil(y, catalogo(), h=1, min_entrenamiento=120)
     detalle.to_csv(SALIDAS / "combinacion_detalle.csv", index=False)
-    detalle["anio"] = detalle.origen.str[:4].astype(int)
+    detalle["regimen"] = backtest.regimen(detalle, RUPTURA)
 
     tramos = {
         "completo": detalle,
-        "calma": detalle[~detalle.anio.isin(RUPTURA)],
-        "ruptura": detalle[detalle.anio.isin(RUPTURA)],
+        "calma": detalle[detalle.regimen == "calma"],
+        "ruptura": detalle[detalle.regimen == "ruptura"],
     }
     columnas = {}
     for etiqueta, sub in tramos.items():
         t = backtest.resumen(sub).set_index("modelo")
-        columnas[etiqueta] = t.mae
-    tabla = pd.DataFrame(columnas).sort_values("completo")
+        columnas[f"mae_{etiqueta}"] = t.mae.where(t.rankeable)
+        columnas[f"ganancia_{etiqueta}"] = t.ganancia_pct.where(t.rankeable)
+        columnas[f"p_{etiqueta}"] = t.dm_p.where(t.rankeable)
+        columnas[f"cobertura_{etiqueta}"] = t.cobertura
+    tabla = pd.DataFrame(columnas).sort_values("mae_completo")
     tabla.to_csv(SALIDAS / "combinacion_resumen.csv")
 
-    base = tabla.loc["Ingenuo"]
-    print(f"\n{'=' * 84}\nCOMBINACION POR REGIMEN - MAE por tramo "
-          f"(y % de mejora sobre el ingenuo)\n{'=' * 84}")
-    print(f"{'modelo':28s} {'completo':>18s} {'calma':>18s} {'ruptura':>18s}")
-    print("-" * 84)
+    print(f"\n{'=' * 96}\nCOMBINACION POR REGIMEN - MAE por tramo, % sobre el ingenuo y p "
+          f"de Diebold-Mariano\n(regimen del mes pronosticado; las piezas se eligieron "
+          f"mirando esta serie: hipotesis, R-10)\n{'=' * 96}")
+    print(f"{'modelo':28s} {'completo':>22s} {'calma':>22s} {'ruptura':>22s}")
+    print("-" * 96)
     for modelo, r in tabla.iterrows():
-        def celda(col):
-            v, b = r[col], base[col]
+        def celda(tramo):
+            v, g, p = r[f"mae_{tramo}"], r[f"ganancia_{tramo}"], r[f"p_{tramo}"]
             if pd.isna(v):
-                return f"{'-':>18s}"
+                return f"{'-':>22s}"
             if modelo == "Ingenuo":
-                return f"{v:8.3f}   (ref)  "
-            return f"{v:8.3f} ({(1 - v / b) * 100:+5.1f}%)"
+                return f"{v:7.3f}   (ref)       "
+            p_txt = f"{p:5.3f}" if pd.notna(p) else "  -  "
+            return f"{v:7.3f} {g:+6.1f}% p={p_txt}"
         print(f"{modelo[:28]:28s} {celda('completo')} {celda('calma')} {celda('ruptura')}")
-    print("-" * 84)
+    print("-" * 96)
     print(f"\nSalidas en {SALIDAS}")
 
 

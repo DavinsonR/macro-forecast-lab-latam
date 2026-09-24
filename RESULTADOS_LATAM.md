@@ -1,213 +1,231 @@
-# Resultados — extensión LATAM
+# Resultados: extensión LATAM
 
-Corrida del 18-sep-2026. El mismo protocolo de `RESULTADOS.md`, sin tocar nada, sobre
-20 países de América Latina.
+Corrida del 23-sep-2026, versión 1.0.0. El mismo protocolo de `RESULTADOS.md` sobre 20
+países de América Latina.
 
 Un país no distingue un hallazgo de una casualidad. Esta extensión existe para someter a
-prueba el resultado de Colombia. **No sobrevivió.**
+prueba el resultado de Colombia.
+
+> **Qué cambió respecto de la versión 0.1.0 (18-sep-2026).** La versión anterior decía
+> que el hallazgo de Colombia "se invierte, con significancia en ambos sentidos", y que
+> la combinación por régimen "sí funciona". **Ninguna de las dos afirmaciones sobrevive
+> a la auditoría** (`docs/BITACORA.md`, B-002 a B-009 y D-003 a D-006):
+>
+> - La ruptura se asignaba por el año del origen. En la pista anual, la "ruptura" eran
+>   los objetivos 2021 y 2022, no la caída de 2020.
+> - Las p no se corregían por comparaciones múltiples. Con Holm, ninguno de los dos lados
+>   de la "inversión" de Colombia es significativo.
+> - **Las 8 series trimestrales son ajustadas estacionalmente.** El IFS no publica la
+>   versión sin ajustar para estos países. En 0.1.0 no se declaró; ahora sí (R-05).
+> - La combinación se diseñó mirando el ISE. Fuera de él, en 28 series, no le gana al
+>   AR(1) solo.
+> - "Comb. 50/50 RF-AR(1)" no era una mezcla 50/50: en el 98 % de los orígenes es AR(1)
+>   puro. Ahora se llama `Comb. RF/AR(1) umbral min`.
+
+Cómo leer las tablas agregadas: **mediana** del MAE relativo al ingenuo entre países
+(1,00 = igual al ingenuo, menor es mejor); **p Wilc**, Wilcoxon de rangos con signo entre
+países sobre log(MAE relativo); **sig/n**, cuántos países dan una mejora con
+Diebold-Mariano p < 0,05 sin ajustar, sobre cuántos se evaluaron.
 
 ---
 
-## 1. El hallazgo principal: Colombia se contradice a sí misma
+## 1. Colombia en dos frecuencias: dirección opuesta, sin significancia
 
-Colombia aparece en dos pistas, con dos fuentes y dos frecuencias, sobre el **mismo
-período de ruptura** (2020–2021). El resultado es opuesto, y significativo en ambas
-direcciones:
+Colombia aparece en dos pistas, con dos fuentes y dos frecuencias, sobre el mismo
+período de ruptura (objetivos en 2020–2021):
 
-| Fuente | Frecuencia | Modelo | vs ingenuo | p |
-|---|---|---|---|---|
-| ISE, DANE | mensual, 246 obs | LSTM(16) | **−60,7 %** | 0,019 ✱ *peor* |
-| PIB real, FMI | trimestral, 81 obs | LSTM(16) | **+21,8 %** | 0,018 ✱ *mejor* |
+| Fuente | Frecuencia | Modelo | vs ingenuo en la ruptura | p | p Holm |
+|---|---|---|---|---|---|
+| ISE, DANE (sin ajuste) | mensual, 24 objetivos | LSTM(16) | −62,2 % | 0,019 | 0,241 |
+| PIB real, FMI (ajustado) | trimestral, 8 objetivos | LSTM(16) | +21,0 % | 0,027 | 0,327 |
 
-Misma economía, mismos años, misma familia de modelo, conclusiones contrarias, ambas
-significativas al 5 %.
+La dirección es opuesta. **Ninguna de las dos sobrevive a Holm.** Lo que queda es más
+modesto que lo publicado en 0.1.0: la misma familia de modelos, en la misma economía y el
+mismo período, apunta en sentidos contrarios según la fuente y la frecuencia, y con esta
+cantidad de datos ninguna de las dos direcciones se puede afirmar.
 
-**Lo que esto establece:** el resultado de un ejercicio de comparación de modelos puede
-depender más de la frecuencia y de la fuente elegidas que del modelo. Cualquier ranking
-publicado sin declarar esas dos decisiones es una afirmación más débil de lo que aparenta
-— incluido el de `RESULTADOS.md`.
-
-Hipótesis para explicarlo, sin contrastar: 246 observaciones mensuales le dan a un LSTM
-material para aprender la dinámica de calma que 80 trimestres no dan; pero en la ruptura,
-con datos trimestrales, la red se adapta más rápido que un AR(1) anclado a su media. Para
-contrastarlo habría que remuestrear el ISE a trimestral y volver a correr. Es el
-siguiente experimento, no una conclusión.
+Además, las dos series difieren en algo más que la frecuencia: una está sin ajustar y la
+otra ajustada estacionalmente. Separar esos dos efectos requeriría remuestrear el ISE a
+trimestral. Es el siguiente experimento, no una conclusión.
 
 ---
 
-## 2. La frontera de cobertura generaliza, y es peor
+## 2. La frontera de cobertura generaliza
 
-La restricción encontrada en Colombia no era una peculiaridad colombiana:
+La restricción encontrada en Colombia no es una peculiaridad colombiana
+(`salidas/frontera_latam.csv`):
 
 | | 33 variables | 20 variables | 14 variables |
 |---|---|---|---|
-| **Mediana LATAM** | **0 años** | 54 años | 66 años |
-| Países con menos de 20 años completos | **20 de 20** | — | — |
+| Mediana LATAM (años completos) | **0** | 54,5 | 65,5 |
 
-En **18 de los 20 países, exigir las 33 variables deja cero años completos.** Solo
-Colombia (13), Perú (16) y México (3) tienen alguno, y ninguno llega a 20.
+**En 17 de los 20 países, exigir las 33 variables deja cero años completos.** Solo
+Perú (16), Colombia (13) y México (3) tienen alguno, y ninguno llega a 20. (La versión
+0.1.0 decía "18 de 20", pero listaba estos mismos tres países; el conteo correcto es 17).
 
-Dicho de otro modo: **Colombia y Perú son las economías mejor documentadas de la
-región**, y aun así ninguna sostiene el conjunto completo de variables macro que un
-ejercicio de este tipo pediría por defecto.
-
-Los paneles finalmente utilizables, recortados hasta n/p ≥ 3, van de 48 años × 16
-variables (Venezuela) a 64 × 19 (Chile, Costa Rica, México, Uruguay y otros).
+Los paneles utilizables, contiguos y recortados hasta n/p ≥ 3, van de 48 años × 16
+variables (Venezuela) a 64 años × 19 variables (Ecuador, Guatemala, México, Uruguay y otros).
 
 ---
 
-## 3. Pista C — PIB trimestral, 8 países
+## 3. Pista C: PIB trimestral, 8 países
 
-Cobertura: Argentina, Brasil, Chile, Colombia, Costa Rica, Ecuador, Honduras, México.
-Los otros doce no tienen serie trimestral con 40 o más trimestres en el IFS; se sondearon
-cinco códigos alternativos por país y no hay nada.
+Cobertura: Argentina, Brasil, Chile, Colombia, Costa Rica, Ecuador, Honduras y México.
+Los otros doce no tienen serie trimestral con 40 o más trimestres en el IFS.
 
-### Agregado (MAE mediano relativo al ingenuo)
+**Serie ajustada estacionalmente (B-003).** En los 8 países el IFS solo publica la
+versión ajustada. El ajuste se reestima con la serie completa, así que ya vio el futuro
+de cada origen. Eso favorece por igual a todos los modelos y puede hacer que los errores
+se vean algo más bajos de lo que serían en tiempo real.
 
-| Modelo | Calma | Ruptura |
-|---|---|---|
-| AR(1) | **0,948** | 0,866 |
-| ARIMA(1,1,1) | 0,952 | 1,075 |
-| *Ingenuo* | *1,000* | *1,000* |
-| Random Forest | 1,065 | 0,864 |
-| LSTM(16) | 1,083 | **0,811** |
+### Agregado
 
-### Quién gana, por país
+| Modelo | Calma | p Wilc | sig/n | Ruptura | p Wilc | sig/n |
+|---|---|---|---|---|---|---|
+| **AR(1)** | **0,933** | **0,008** | 2/8 | 0,894 | 0,008 | 0/8 |
+| ARIMA(1,1,1) | 0,940 | 0,055 | 0/8 | 1,067 | 0,016 | 0/8 |
+| Comb. RF/AR(1) umbral min | 0,945 | 0,148 | 1/8 | 0,897 | 0,008 | 0/8 |
+| *Ingenuo* | *1,000* | — | — | *1,000* | — | — |
+| Random Forest | 1,022 | 0,547 | 0/8 | 0,919 | 0,148 | 0/8 |
+| LSTM(16) | 1,040 | 0,250 | 0/8 | **0,818** | 0,039 | 2/8 |
+| Comb. RF/AR(1) suave | 1,099 | 0,383 | 0/8 | 0,899 | 0,008 | 0/8 |
+| Ridge sobre rezagos | 1,253 | 0,023 | 0/8 | 0,864 | 0,109 | 0/8 |
 
-| Régimen | Box-Jenkins | Redes | Aprendizaje | Regularizado | Combinación |
-|---|---|---|---|---|---|
-| Calma | **4** | 1 | 1 | 1 | 1 |
-| Ruptura | **0** | **5** | 2 | 1 | 0 |
+**El AR(1) le gana al ingenuo en los 8 países, en calma y en ruptura.** Con 8 países,
+p = 0,008 es el valor mínimo posible: los ocho van en la misma dirección. Es el resultado
+más sólido de la pista.
 
-**Simples en calma, flexibles en la ruptura.** Es el patrón inverso al de Colombia
-mensual.
-
-**Advertencia de poder:** solo **2 de 16** comparaciones son significativas — Argentina
-(+44,6 %, p = 0,023) y Colombia (+21,8 %, p = 0,018), ambas LSTM en ruptura. Con 8
-trimestres de ruptura por país no hay poder estadístico. El conteo de familias es
-sugerente; las pruebas individuales, casi todas mudas.
+Mejor modelo por país: en calma, Box-Jenkins gana en 4 de 8; en ruptura, las redes ganan
+en 5 de 8. Pero **ninguna victoria individual sobrevive a Holm**. Las dos con p cruda
+menor a 0,05 son las del LSTM en la ruptura de Argentina (+43,4 %, p Holm 0,189) y de
+Colombia (+21,0 %, p Holm 0,327). Con 8 trimestres de ruptura por país no hay poder.
 
 ---
 
-## 4. Pista D — crecimiento anual, 20 países
+## 4. Pista D: crecimiento anual, 20 países
+
+El objetivo es la serie completa y contigua de crecimiento de cada país (B-005): 35
+orígenes en la mayoría de los países, 30 en El Salvador y 24 en Cuba.
 
 ### Calma
 
-| Modelo | MAE mediano relativo al ingenuo |
-|---|---|
-| AR(1) | **0,899** |
-| Comb. 50/50 RF-AR(1) | 0,918 |
-| ARIMA(1,1,1) | 0,920 |
-| LSTM(16) | 0,972 |
-| *Ingenuo* | *1,000* |
-| Random Forest | 1,031 |
+| Modelo | Mediana | p Wilc | sig/n |
+|---|---|---|---|
+| **AR(1)** | **0,862** | **0,001** | 4/20 |
+| Comb. RF/AR(1) umbral min | 0,890 | 0,002 | 3/20 |
+| ARIMA(1,1,1) | 0,891 | 0,004 | 3/20 |
+| LSTM(16) | 0,919 | 0,114 | 2/20 |
+| Random Forest | 0,940 | 0,956 | 0/20 |
+| Comb. RF/AR(1) suave | 0,994 | 0,869 | 1/20 |
+| *Ingenuo* | *1,000* | — | — |
 
-Box-Jenkins gana en 9 de 20 países, las combinaciones en 5, las redes en 3, y el ingenuo
-en 3.
+**Entre países el AR(1) le gana al ingenuo con claridad** (mediana 0,862, p = 0,001), y
+las dos variantes que en el fondo son AR(1) lo siguen. Los flexibles no se distinguen.
 
-**Pero la significancia es la que se esperaría por azar:** 3 de 20 países dan p < 0,05
-(Dominicana, Panamá, El Salvador). Probando 20 países al 5 %, uno esperaría un acierto
-por azar; tres no es evidencia fuerte, y ninguna corrección por comparaciones múltiples
-los deja en pie.
+País por país, el mejor modelo tiene p cruda < 0,05 en 5 de 20 (Dominicana, Ecuador,
+Guatemala, Panamá y Perú). Por azar se esperaría uno. **Tras Holm no queda ninguno**: la
+menor p ajustada es 0,098 (Ecuador). La evidencia está en el agregado, no en los países.
 
-### Ruptura — no contrastable
+`Comb. LSTM/AR(1) suave` queda fuera en calma: su cobertura es del 82 %, porque el LSTM no
+ajusta con tramos de entrenamiento cortos (R-07).
 
-La tabla por país muestra a las redes y las combinaciones ganando en 13 de 20 países, con
-LSTM en 0,403 relativo al ingenuo. **Ese número no se debe reportar como hallazgo.**
+### Ruptura: el ingenuo pierde por construcción
 
-La ruptura anual tiene **exactamente 2 orígenes por país** — 2020 y 2021. Ninguna prueba
-de Diebold-Mariano es posible (requiere más de 5 pares), y en la tabla todas las columnas
-de p salen vacías por esa razón. Dos observaciones no distinguen un modelo de otro.
+Ahora la ruptura anual sí contiene la caída de 2020 y el rebote de 2021: 2 objetivos por
+país. No hay Diebold-Mariano posible con dos pares. Entre países, todos los modelos salvo la deriva le
+ganan al ingenuo (medianas de 0,71 a 0,85, Wilcoxon p ≤ 0,044).
+
+**Eso no mide habilidad.** El ingenuo pronostica para 2021 la caída de 2020 y se come el
+rebote entero. Cualquier modelo que vuelva hacia la media le gana en ese año. Con dos
+observaciones por país, lo único que muestra esta tabla es que el ingenuo es la peor
+referencia posible justo después de un choque.
 
 ---
 
-## 5. La combinación por régimen — sí funciona
+## 5. La combinación por régimen: hipótesis en el ISE, no se replica fuera
 
-Sobre el ISE mensual de Colombia, que es la única serie con observaciones suficientes
-para contrastarla:
+### En el ISE, donde se diseñó
 
 | Modelo | Completo | Calma | Ruptura |
 |---|---|---|---|
-| **Comb. RF/AR(1) suave** | **1,859 (+17,3 %)** | 1,423 (+21,5 %) | 3,708 (**+9,2 %**) |
-| Random Forest solo | 2,103 (+6,4 %) | **1,382 (+23,8 %)** | 5,169 (**−26,6 %**) |
-| AR(1) solo | 2,080 (+7,4 %) | 1,697 (+6,5 %) | 3,707 (+9,2 %) |
-| LSTM(16) solo | 2,431 (−8,2 %) | 1,460 (+19,5 %) | 6,560 (−60,7 %) |
-| *Ingenuo* | *2,246* | *1,814* | *4,082* |
+| **Comb. RF/AR(1) suave** | **1,859 (+17,3 %, p Holm 0,006)** | 1,428 (+22,1 %, 0,005) | 3,687 (+7,9 %, 1,000) |
+| Random Forest solo | 2,103 (+6,4 %, 0,786) | **1,393 (+24,0 %, 0,004)** | 5,120 (−27,9 %, 0,726) |
+| AR(1) solo | 2,080 (+7,4 %, 0,146) | 1,707 (+6,9 %, 0,075) | 3,664 (+8,5 %, 1,000) |
+| LSTM(16) solo | 2,431 (−8,2 %, 0,786) | 1,476 (+19,5 %, 0,020) | 6,491 (−62,2 %, 0,148) |
+| *Ingenuo* | *2,246* | *1,833* | *4,002* |
 
-La combinación conserva casi toda la ventaja del Random Forest en calma (+21,5 % contra
-+23,8 %) y **elimina su colapso en la ruptura** (+9,2 % contra −26,6 %). Sobre la muestra
-completa le gana a sus dos componentes: **+17,3 % frente a +6,4 % y +7,4 %.**
+Sobre la muestra completa la combinación le gana al ingenuo con p Holm 0,006, y a sus dos
+componentes por separado. **Pero es hipótesis (R-09, R-10, D-004):** el Random Forest y el
+AR(1) se eligieron como piezas después de ver la tabla de robustez de esta misma serie. Y
+en la ruptura su ventaja (+7,9 %) no es significativa.
 
-### El interruptor no anticipa: reacciona
+### Fuera del ISE, donde entra sin retocar
 
-El peso que asignó al modelo robusto, mes a mes, calculado **solo con datos anteriores a
-cada origen**:
+En las 28 series de LATAM (8 trimestrales y 20 anuales), la combinación no mejora al AR(1)
+solo:
+
+| | Calma C | Ruptura C | Calma D | Ruptura D |
+|---|---|---|---|---|
+| AR(1) | **0,933** | 0,894 | **0,862** | 0,829 |
+| Comb. RF/AR(1) suave | 1,099 | 0,899 | 0,994 | 0,830 |
+
+En calma, donde el interruptor casi siempre va al Random Forest, la combinación hereda
+la debilidad del Random Forest fuera de Colombia. **El resultado del ISE no se replica.**
+
+### El interruptor reacciona, no anticipa
+
+El peso asignado al modelo robusto, calculado solo con datos anteriores a cada origen
+(`salidas/combinacion_pesos.csv`):
 
 | Origen | Peso robusto | Real en t+1 |
 |---|---|---|
 | 2020-01 | 0,00 | +3,6 % |
 | 2020-02 | **0,00** | **−6,3 %** ← se lo pierde |
 | 2020-03 | **1,00** | −20,2 % ← reacciona |
-| 2020-04 … 2020-11 | 1,00 | −17,4 … −2,2 % |
-| 2020-12 | 0,00 | −3,4 % |
+| 2020-04 | 1,00 | −17,4 % |
 
-Cuesta **un mes de rezago**: no ve venir la pandemia, la detecta al mes siguiente y se
-queda mientras dura. Ese rezago es el precio de no hacer trampa, y está a la vista en
-`salidas/combinacion_pesos.csv` para que cualquiera lo audite.
+Cuesta un mes de rezago: no ve venir la pandemia y la detecta al mes siguiente.
 
 ---
 
-## 6. Un error que habría invertido el titular
+## 6. Un error que habría invertido el titular (B-001)
 
 La primera corrida de la Pista C daba a las combinaciones ganando en los 8 países. Era
-falso.
-
-`_indice_futuro` solo contemplaba `DatetimeIndex`; las series trimestrales de LATAM usan
-`PeriodIndex`. Todo modelo recursivo — Random Forest, Ridge y las combinaciones que los
-invocan — reventaba y devolvía `NaN`. Los `NaN` se descartaban al promediar, de modo que
-**el modelo quedaba evaluado solo sobre los orígenes donde sobrevivió**.
-
-México, antes y después:
-
-| | con el error | corregido |
-|---|---|---|
-| "Ganador" | Comb. RF/ingenuo, MAE 0,750 | Random Forest, MAE 1,582 |
-| Observaciones reales | **7 de 77** | 77 de 77 |
-| Fallos de Random Forest | 77 de 77 | 0 |
-
-Parecía el mejor por no haber competido.
-
-**Además del arreglo se añadió una regla de protocolo:** `backtest.resumen` calcula ahora
-la cobertura de cada modelo y **deja fuera del ordenamiento a cualquiera por debajo del
-90 %**, mostrando su cobertura. La regla ya atrapó un segundo caso por su cuenta —
-`Comb. LSTM/AR(1) suave` tiene 79 % de cobertura en la calma anual, porque el LSTM no
-ajusta con series de entrenamiento cortas, y quedó excluido del agregado.
+falso. `_indice_futuro` no atendía `PeriodIndex`, los modelos recursivos devolvían `NaN`
+y el resumen los evaluaba solo sobre los orígenes donde sobrevivían. En México, el
+"ganador" tenía MAE 0,750 calculado sobre 7 de 77 orígenes. Desde entonces
+`backtest.resumen` deja fuera del ordenamiento a cualquier modelo con cobertura menor al
+90 % (R-07).
 
 ---
 
 ## 7. Qué queda establecido
 
-1. **El resultado de Colombia no se replica; se invierte.** Y en el caso más directo
-   —misma economía, mismo período— se invierte con significancia en ambos sentidos.
-2. **La frontera de cobertura es una restricción regional, no colombiana.** 18 de 20
-   países no tienen un solo año con las 33 variables.
-3. **La combinación por régimen funciona donde hay datos para probarla**, con un
-   interruptor que solo mira el pasado y cuesta un mes de rezago.
-4. **En calma, los modelos simples llevan ventaja en LATAM.** AR(1) es el mejor agregado
-   en las dos pistas. Pero la significancia por país es la del azar.
-5. **La ruptura anual no es contrastable.** Dos observaciones por país.
+1. **En calma, el AR(1) le gana al ingenuo en toda la región.** En 8 de 8 países
+   trimestrales (Wilcoxon p = 0,008) y en la mediana de 20 anuales (0,862, p = 0,001).
+   Es el hallazgo más robusto del laboratorio.
+2. **Ningún ranking por país sobrevive a la corrección por comparaciones múltiples**, en
+   ninguna pista.
+3. **La frontera de cobertura es regional.** En 17 de 20 países no hay un solo año con
+   las 33 variables.
+4. **La combinación por régimen no se replica fuera de la serie donde se diseñó.**
 
 ## Qué NO queda establecido
 
-- Que las redes sirvan o no sirvan. Depende de la frecuencia, y eso es justo lo que este
-  ejercicio no controló.
-- Nada sobre la ruptura en datos anuales.
-- Ningún ranking por país: con 20 países y pruebas al 5 %, los tres aciertos en calma son
-  compatibles con el azar.
+- Que el resultado de Colombia "se invierta". Las dos direcciones son opuestas y ninguna
+  es significativa tras Holm.
+- Que las redes sirvan o no sirvan en la ruptura trimestral: 5 de 8 victorias, 0
+  significativas.
+- Nada sobre la habilidad de los modelos en la ruptura anual: dos observaciones por país
+  y un ingenuo que pierde por construcción.
 
 ## Reproducir
 
 ```bash
-uv run python -m macro_lab.lab_latam        # pistas C y D
+uv run python -m macro_lab.lab_latam        # pistas C y D, frontera LATAM
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
 ```
+
+Salidas: `pista_{c,d}_detalle.csv`, `pista_{c,d}_por_pais.csv`,
+`pista_{c,d}_relativo_pais.csv`, `pista_{c,d}_agregado.csv`, `frontera_latam.csv`,
+`combinacion_*.csv`.

@@ -130,19 +130,38 @@ def frontera_cobertura(df: pd.DataFrame) -> pd.DataFrame:
 
     Es el diagnostico que decide el diseno del laboratorio: pedir las 33 variables a la
     vez deja 13 anios, y con 13 observaciones no se estima nada.
+
+    `n_anios` cuenta anios completos; `n_contiguos` y `ratio_n_p`, solo el tramo
+    consecutivo final, que es lo que un modelo de rezagos puede usar (B-004).
     """
     cobertura = df.notna().sum().sort_values(ascending=False)
     filas = []
     for k in range(3, len(cobertura) + 1):
         sub = df[list(cobertura.index[:k])].dropna()
+        cont = tramo_contiguo(sub)
         filas.append(dict(
-            k_variables=k, n_anios=len(sub),
-            desde=int(sub.index.min()) if len(sub) else None,
-            hasta=int(sub.index.max()) if len(sub) else None,
-            ratio_n_p=len(sub) / k,
+            k_variables=k, n_anios=len(sub), n_contiguos=len(cont),
+            desde=int(cont.index.min()) if len(cont) else None,
+            hasta=int(cont.index.max()) if len(cont) else None,
+            ratio_n_p=len(cont) / k,
             entra=cobertura.index[k - 1],
         ))
     return pd.DataFrame(filas)
+
+
+def tramo_contiguo(df):
+    """El tramo de anios consecutivos mas largo que termina en el ultimo anio presente.
+
+    `dropna()` por filas quita un anio incompleto pero deja pegados a sus vecinos, y un
+    modelo de rezagos trata 1985 -> 1987 como un solo anio (B-004). Aqui se corta en el
+    ultimo hueco: se pierde historia vieja, no se fabrica continuidad.
+    """
+    if len(df) == 0:
+        return df
+    anios = np.asarray(df.index, dtype=int)
+    huecos = np.flatnonzero(np.diff(anios) != 1)
+    inicio = huecos[-1] + 1 if len(huecos) else 0
+    return df.iloc[inicio:]
 
 
 def panel_anual(df: pd.DataFrame, min_ratio: float = 3.0) -> pd.DataFrame:
@@ -157,7 +176,7 @@ def panel_anual(df: pd.DataFrame, min_ratio: float = 3.0) -> pd.DataFrame:
     k = int(viables.k_variables.max())
     cobertura = df.notna().sum().sort_values(ascending=False)
     elegidas = list(cobertura.index[:k])
-    return df[elegidas].dropna()
+    return tramo_contiguo(df[elegidas].dropna())
 
 
 # --------------------------------------------------------------------------- Pista B

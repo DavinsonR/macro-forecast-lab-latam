@@ -55,11 +55,10 @@ def _combinar(y, h, X=None, flexible=None, robusto=None, ventana=8,
     if w >= 0.999:
         salida = p_rob
     else:
+        # Si el flexible falla, la combinacion falla: sustituirlo por el robusto seria
+        # rellenar un fallo con otro modelo y esconderlo de la cobertura (B-006).
         p_flex = np.asarray(flexible(y, h, X), dtype=float)
-        if not np.all(np.isfinite(p_flex)):
-            salida = p_rob
-        else:
-            salida = w * p_rob + (1 - w) * p_flex
+        salida = w * p_rob + (1 - w) * p_flex
 
     return (salida, w) if devolver_peso else salida
 
@@ -95,7 +94,7 @@ def catalogo_combinaciones() -> list[Modelo]:
                params=dict(flexible=_flex_rf, robusto=_rob_ingenuo, suave=True, cuantil=0.80)),
         Modelo("Comb. LSTM/AR(1) suave", "combinacion", _combinar,
                params=dict(flexible=_flex_lstm, robusto=_rob_ar1, suave=True, cuantil=0.80)),
-        Modelo("Comb. 50/50 RF-AR(1)", "combinacion", _combinar,
+        Modelo("Comb. RF/AR(1) umbral min", "combinacion", _combinar,
                params=dict(flexible=_flex_rf, robusto=_rob_ar1, suave=True, cuantil=0.0)),
     ]
 

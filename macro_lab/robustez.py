@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .backtest import resumen
+from .backtest import anio, resumen
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -20,13 +20,14 @@ RAIZ = Path(__file__).resolve().parent.parent
 SALIDAS = RAIZ / "salidas"
 
 
-def _anio(origen: str) -> int:
-    return int(str(origen)[:4])
-
-
 def particion(detalle: pd.DataFrame, nombre: str, top: int = 10) -> pd.DataFrame:
+    """MAE y puesto por subperiodo, clasificado por el anio del periodo pronosticado.
+
+    Los subperiodos se eligieron despues de ver los datos: lo que muestre esta tabla es
+    hipotesis (R-10). Solo compiten por puesto los modelos con cobertura suficiente (R-07).
+    """
     detalle = detalle.copy()
-    detalle["anio"] = detalle.origen.map(_anio)
+    detalle["anio"] = detalle.objetivo.map(anio)
 
     tramos = {
         "completo": detalle,
@@ -40,8 +41,8 @@ def particion(detalle: pd.DataFrame, nombre: str, top: int = 10) -> pd.DataFrame
         if sub.empty:
             continue
         t = resumen(sub).set_index("modelo")
-        columnas[etiqueta] = t.mae
-        columnas[etiqueta + " |rank"] = t.mae.rank()
+        columnas[etiqueta] = t.mae.where(t.rankeable)
+        columnas[etiqueta + " |rank"] = t.mae.where(t.rankeable).rank()
 
     tabla = pd.DataFrame(columnas)
     orden = tabla["completo"].sort_values().index
@@ -55,8 +56,11 @@ def particion(detalle: pd.DataFrame, nombre: str, top: int = 10) -> pd.DataFrame
         def celda(k, rk):
             v = r.get(k)
             p = r.get(rk)
-            return (f"{v:>10.3f} {int(p):3d}" if pd.notna(v) and pd.notna(p) else f"{'-':>10s} {'-':>3s}")
-        print(f"{modelo[:32]:32s} {r['completo']:9.3f} "
+            if pd.notna(v) and pd.notna(p):
+                return f"{v:>10.3f} {int(p):3d}"
+            return f"{'-':>10s} {'-':>3s}"
+        comp = f"{r['completo']:9.3f}" if pd.notna(r["completo"]) else f"{'-':>9s}"
+        print(f"{modelo[:32]:32s} {comp} "
               f"{celda('sin COVID (excluye 2020-2021)', 'sin COVID (excluye 2020-2021) |rank')} "
               f"{celda('solo COVID (2020-2021)', 'solo COVID (2020-2021) |rank')} "
               f"{celda('post-COVID (2022+)', 'post-COVID (2022+) |rank')}")
