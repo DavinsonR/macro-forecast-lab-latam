@@ -25,6 +25,7 @@ import pandas as pd
 
 from . import __version__, backtest, datos, latam
 from .eventos import CATEGORIAS, EVENTOS
+from .pronostico import pronosticos
 
 RAIZ = Path(__file__).resolve().parent.parent
 SALIDAS = RAIZ / "salidas"
@@ -249,6 +250,22 @@ def _eventos(anios: range) -> dict:
     )
 
 
+def _pronostico(largo: pd.DataFrame) -> dict:
+    """El pronostico publicado (D-008), redondeado una sola vez a lo que se muestra (B-011)."""
+    p = pronosticos(largo)
+
+    def redondear(d: dict, enteros: set[str], nd: int) -> dict:
+        return {k: (v if k in enteros else _r(v, nd)) for k, v in d.items()}
+
+    # 1 decimal en crecimiento y bandas, 2 en proporciones: la pagina los muestra tal cual.
+    for e in p["economias"]:
+        e["ultimo"] = _r(e["ultimo"], 1)
+        e["pronostico"] = [redondear(f, {"anio"}, 1) for f in e["pronostico"]]
+        e["cobertura"] = redondear(e["cobertura"], {"n"}, 2)
+    p["cobertura_region"] = redondear(p["cobertura_region"], {"n"}, 2)
+    return p
+
+
 def _escribir(nombre: str, obj) -> int:
     ruta = DESTINO / nombre
     texto = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
@@ -300,6 +317,7 @@ def main() -> None:
         "panel.json": _escribir("panel.json", _panel(largo)),
         "ise.json": _escribir("ise.json", _ise()),
         "eventos.json": _escribir("eventos.json", _eventos(range(1960, 2026))),
+        "pronostico.json": _escribir("pronostico.json", _pronostico(largo)),
     }
     for nombre, n in pesos.items():
         print(f"  {nombre:24s} {n / 1024:6.1f} KB")

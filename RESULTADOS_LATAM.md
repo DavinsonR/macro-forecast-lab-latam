@@ -253,12 +253,52 @@ y el resumen los evaluaba solo sobre los orígenes donde sobrevivían. En Méxic
 - Nada sobre la habilidad de los modelos en la ruptura anual: dos observaciones por país
   y un ingenuo que pierde por construcción.
 
+## Pronóstico 2026–2027 (D-008)
+
+El laboratorio publica un pronóstico de un solo modelo: el AR(1), el que la Pista D mostró
+que le gana al ingenuo en toda la región en calma. Se eligió por esa evidencia, no por lo
+que pronostica (R-09). Crecimiento del PIB real, % anual; entre corchetes, banda del 95 %.
+La última columna es la cobertura empírica de esa banda a un paso en el backtest.
+
+| Economía | Último | 2026 | 2027 | Cobertura 95 % |
+|---|---:|---:|---:|---:|
+| ARG | 4,4 (2025) | 2,5 [−8,1; 13,1] | 2,3 [−8,4; 12,9] | 94 % |
+| BOL | −1,6 (2025) | 1,6 [−4,8; 8,1] | 2,7 [−4,1; 9,5] | 91 % |
+| BRA | 2,3 (2025) | 3,0 [−3,7; 9,6] | 3,3 [−4,2; 10,8] | 100 % |
+| CHL | 2,5 (2025) | 3,5 [−5,3; 12,4] | 3,8 [−5,3; 12,9] | 94 % |
+| COL | 2,6 (2025) | 3,7 [−1,4; 8,8] | 3,9 [−1,3; 9,1] | 86 % |
+| CRI | 4,6 (2025) | 4,5 [−1,0; 10,1] | 4,5 [−1,2; 10,3] | 91 % |
+| CUB | −1,1 (2024) | 1,5 [−9,6; 12,5] | 1,9 [−9,4; 13,2] | 96 % |
+| DOM | 2,1 (2025) | 5,4 [−4,5; 15,2] | 5,2 [−4,7; 15,1] | 97 % |
+| ECU | 3,7 (2025) | 3,7 [−3,1; 10,5] | 3,7 [−3,3; 10,7] | 91 % |
+| GTM | 4,3 (2025) | 4,0 [−0,2; 8,2] | 3,9 [−0,7; 8,5] | 94 % |
+| HTI | −2,7 (2025) | 0,6 [−6,9; 8,1] | 1,1 [−6,5; 8,7] | 89 % |
+| MEX | 0,6 (2025) | 2,4 [−4,7; 9,6] | 3,1 [−4,4; 10,6] | 89 % |
+| NIC | 4,9 (2025) | 3,5 [−7,2; 14,2] | 3,0 [−8,3; 14,3] | 100 % |
+| PAN | 4,4 (2025) | 5,1 [−5,0; 15,2] | 5,3 [−5,0; 15,5] | 94 % |
+| PER | 3,4 (2025) | 3,4 [−6,0; 12,8] | 3,4 [−6,3; 13,1] | 94 % |
+| PRY | 6,6 (2025) | 5,5 [−0,6; 11,6] | 5,0 [−1,8; 11,7] | 91 % |
+| SLV | 3,9 (2025) | 2,8 [−4,3; 9,8] | 2,3 [−5,2; 9,9] | 93 % |
+| URY | 1,8 (2025) | 2,0 [−5,3; 9,3] | 2,1 [−5,9; 10,1] | 94 % |
+| VEN | 1,6 (2025) | 1,2 [−13,0; 15,4] | 1,0 [−15,2; 17,2] | 74 % |
+
+En la región, 649 orígenes: la banda del 95 % contuvo el dato el **92 %** de las veces y
+la del 80 %, el **84 %**. Casi lo prometido en el agregado, no en cada país: Venezuela
+cumple 74 % y su banda hay que leerla más estrecha de lo que es.
+
+Qué no es: una opinión sobre 2026. El AR(1) revierte cada economía hacia su media
+histórica; no sabe de elecciones, precios de materias primas ni de nada posterior al último
+dato del Banco Mundial. Las bandas son anchas porque la región vivió crisis que el modelo
+sabe que pueden repetirse. La cobertura medida es la de un paso; la banda de 2027 (dos
+pasos) no tiene cobertura propia medida.
+
 ## Reproducir
 
 ```bash
 uv run python -m macro_lab.lab_latam        # pistas C y D, frontera LATAM
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
 uv run python -m macro_lab.lab_frecuencia   # ISE remuestreado a trimestral (D-007)
+uv run python -m macro_lab.pronostico       # pronóstico 2026-2027 (D-008)
 ```
 
 Salidas: `pista_{c,d}_detalle.csv`, `pista_{c,d}_por_pais.csv`,

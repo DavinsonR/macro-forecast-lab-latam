@@ -288,3 +288,49 @@ panel web enmascara el mismo tramo y lo dice.
 **Regla que lo habría evitado.** R-08 extendida a la plausibilidad: antes de modelar,
 barrer cada serie buscando rachas imposibles, no solo huecos. Queda como prueba
 (`test_ninguna_racha_imposible`).
+
+---
+
+## D-008 · El laboratorio publica un pronóstico, con su cobertura medida (24-sep-2026)
+
+Hasta aquí el producto eran tablas de error, no un pronóstico publicado. El sitio pide ver
+hacia dónde va cada economía en 2026 y 2027. Se publica, con tres condiciones:
+
+- **Un solo modelo, elegido por la evidencia y no por su pronóstico**: el AR(1), el único
+  que le gana al ingenuo en toda la región en calma (Pista D: mediana 0,861, Wilcoxon
+  p < 0,001). No se elige el modelo mirando qué pronostica (R-09).
+- **Bandas del modelo al 80 y al 95 %, y su cobertura real medida en el backtest.** Con el
+  mismo origen móvil de la Pista D, se cuenta cuántas veces la banda de un paso contuvo el
+  dato. Si la banda del 95 % cubre menos, el sitio lo dice: una banda que promete 95 y
+  cumple 85 es una afirmación falsa.
+- **Es un pronóstico estadístico, no una opinión.** No incorpora información posterior al
+  último dato del Banco Mundial ni juicio experto; se dice en la página.
+
+**Resultado** (`uv run python -m macro_lab.pronostico`). 19 economías, las de la Pista D
+(Honduras sigue fuera por B-010); Cuba termina en 2024 y se pronostica 2025–2027. En 649
+orígenes, la banda del 95 % contuvo el dato el 92 % de las veces y la del 80 %, el 84 %:
+casi lo prometido en la región, no en cada país. Venezuela cumple 74 % con la del 95 %;
+Colombia, 86 %. El sitio marca en rojo las que quedan por debajo de 85 %.
+
+**Límite declarado.** La cobertura medida es la de un paso. Para 2027 el pronóstico es a dos
+pasos y su banda no tiene cobertura medida propia; se asume la misma calidad, y es un
+supuesto.
+
+---
+
+## B-011 · Doble redondeo en el pronóstico publicado (24-sep-2026)
+
+**Síntoma.** Antes de publicar D-008, la tabla de `RESULTADOS_LATAM.md` y la página no
+coincidían en el primer decimal: Perú 2026, banda del 95 % hasta 12,8 en el documento y
+12,9 en la web; Chile, desde −5,3 y −5,4.
+
+**Causa raíz.** El exportador guardaba 2 decimales (12,849 → 12,85) y la página redondeaba
+otra vez a 1 (12,85 → 12,9). Dos redondeos seguidos no equivalen a uno: el documento
+redondeaba una sola vez desde la cifra completa.
+
+**Arreglo.** `pronostico.json` guarda las cifras con la precisión que se muestra: 1 decimal
+para crecimiento y bandas, 2 para las proporciones de cobertura (un porcentaje entero). La
+página ya no redondea algo redondeado.
+
+**Regla que lo habría evitado.** Una cifra publicada se redondea una sola vez, a la
+precisión con que se muestra, y el documento y la página leen el mismo número.
