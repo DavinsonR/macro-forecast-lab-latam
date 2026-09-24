@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 from . import __version__, backtest, datos, latam
+from .eventos import CATEGORIAS, EVENTOS
 
 RAIZ = Path(__file__).resolve().parent.parent
 SALIDAS = RAIZ / "salidas"
@@ -161,6 +162,93 @@ def _frecuencia() -> list[dict]:
     return filas
 
 
+# Las metricas del panel descriptivo: las de mejor cobertura entre las 33, con su unidad.
+# `log` marca las que necesitan escala simetrica logaritmica (la inflacion va de 2 % a
+# decenas de miles en la misma region).
+INDICADORES_PANEL = [
+    ("pib_crecimiento", "Crecimiento del PIB real", "Real GDP growth", "% anual", "% a year", False),  # noqa: E501
+    ("pib_per_capita", "PIB per cápita", "GDP per capita", "US$ constantes de 2015", "constant 2015 US$", False),  # noqa: E501
+    ("inflacion_ipc", "Inflación al consumidor", "Consumer price inflation", "% anual", "% a year", True),  # noqa: E501
+    ("desempleo", "Desempleo", "Unemployment", "% de la fuerza laboral", "% of labour force", False),  # noqa: E501
+    ("cuenta_corriente_pib", "Cuenta corriente", "Current account", "% del PIB", "% of GDP", False),
+    ("exportaciones_pib", "Exportaciones", "Exports", "% del PIB", "% of GDP", False),
+    ("inversion_pib", "Inversión bruta", "Gross investment", "% del PIB", "% of GDP", False),
+    ("credito_privado_pib", "Crédito al sector privado", "Private credit", "% del PIB", "% of GDP", False),  # noqa: E501
+    ("remesas_pib", "Remesas recibidas", "Remittances received", "% del PIB", "% of GDP", False),
+    ("ied_pib", "Inversión extranjera directa", "Foreign direct investment", "% del PIB", "% of GDP", False),  # noqa: E501
+]
+
+# El ISE trae 16 series; los nombres del DANE son largos y sin tildes en el parser (cp1252).
+ISE_SERIES = [
+    ("Indicador de Seguimiento", "ise", "ISE total", "Total ISE"),
+    ("Actividades primarias", "primarias", "Actividades primarias", "Primary activities"),
+    ("Agricultura", "agro", "Agropecuario", "Agriculture"),
+    ("Explotaci", "minas", "Minas y canteras", "Mining"),
+    ("Actividades secundarias", "secundarias", "Actividades secundarias", "Secondary activities"),
+    ("Industrias manufactureras", "industria", "Industria", "Manufacturing"),
+    ("Construcci", "construccion", "Construcción", "Construction"),
+    ("Actividades terciarias", "terciarias", "Actividades terciarias", "Tertiary activities"),
+    ("Suministro de electricidad", "servicios_publicos", "Electricidad, gas y agua", "Utilities"),
+    ("Comercio al por mayor", "comercio", "Comercio, transporte y alojamiento", "Trade, transport and hospitality"),  # noqa: E501
+    ("Informaci", "informacion", "Información y comunicaciones", "Information and communications"),
+    ("Actividades financieras", "financieras", "Financieras y seguros", "Finance and insurance"),
+    ("Actividades inmobiliarias", "inmobiliarias", "Inmobiliarias", "Real estate"),
+    ("Actividades profesionales", "profesionales", "Profesionales y administrativas", "Professional and administrative"),  # noqa: E501
+    ("Administraci", "publica", "Administración pública, educación y salud", "Public administration, education and health"),  # noqa: E501
+    ("Actividades art", "otras", "Artes y otros servicios", "Arts and other services"),
+]
+
+
+def _panel(largo: pd.DataFrame) -> dict:
+    """Panel anual por economia e indicador, alineado a un mismo eje de anios."""
+    anios = list(range(int(largo.anio.min()), int(largo.anio.max()) + 1))
+    ids_panel = {x[0] for x in INDICADORES_PANEL}
+    datos_pais = {}
+    for iso3, sub in latam.enmascarar(largo).groupby("iso3"):
+        ancho = sub.pivot_table(index="anio", columns="variable", values="valor").reindex(anios)
+        datos_pais[iso3] = {
+            ind: ([_r(v, 4 if ind == "pib_per_capita" else 2) for v in ancho[ind]]
+                  if ind in ancho.columns else [None] * len(anios))
+            for ind, *_ in INDICADORES_PANEL
+        }
+    return dict(
+        anios=anios,
+        indicadores=[dict(id=i, es=es, en=en, unidad_es=ue, unidad_en=un, log=lg)
+                     for i, es, en, ue, un, lg in INDICADORES_PANEL],
+        datos=datos_pais,
+        fuente="Banco Mundial, World Development Indicators (CC BY 4.0)",
+        defectos=[dict(iso3=i, indicador=v, desde=a, hasta=b)
+                  for (i, v), (a, b) in latam.DEFECTOS.items() if v in ids_panel],
+    )
+
+
+def _ise() -> dict:
+    """El ISE mensual sin ajuste (Cuadro 1), sus 16 series: la unica estacionalidad real."""
+    df = datos.parsear_ise(datos.CRUDO / "anex-ISE-12actividades.xlsx", "Cuadro 1")
+    series = []
+    for prefijo, sid, es, en in ISE_SERIES:
+        col = [c for c in df.columns if c.startswith(prefijo)]
+        if len(col) != 1:
+            raise ValueError(f"ISE: {prefijo!r} no identifica una sola columna ({col})")
+        series.append(dict(id=sid, es=es, en=en, v=[_r(v) for v in df[col[0]]]))
+    return dict(inicio=f"{df.index[0]:%Y-%m}", series=series,
+                fuente="DANE, anexo ISE, Cuadro 1 (serie original, sin ajuste estacional)")
+
+
+def _eventos(anios: range) -> dict:
+    for e in EVENTOS:
+        if e["cat"] not in CATEGORIAS:
+            raise ValueError(f"categoria desconocida: {e['cat']}")
+        if e["anio"] not in anios:
+            raise ValueError(f"evento fuera del panel: {e}")
+    return dict(
+        categorias=[dict(id=k, es=v[0], en=v[1]) for k, v in CATEGORIAS.items()],
+        eventos=[dict(iso3=e["iso3"], anio=e["anio"], mes=e.get("mes"), cat=e["cat"],
+                      titulo_es=e["es"][0], texto_es=e["es"][1],
+                      titulo_en=e["en"][0], texto_en=e["en"][1]) for e in EVENTOS],
+    )
+
+
 def _escribir(nombre: str, obj) -> int:
     ruta = DESTINO / nombre
     texto = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
@@ -176,9 +264,9 @@ def main() -> None:
 
     y_anual = {}
     for iso3 in sorted(largo.iso3.unique()):
-        s = (largo[(largo.iso3 == iso3) & (largo.variable == "pib_crecimiento")]
-             .set_index("anio").valor.sort_index())
-        y_anual[iso3] = datos.tramo_contiguo(s)
+        s = latam.serie_anual(largo, iso3)
+        if len(s) >= 30 + 8:  # el minimo de la Pista D; Honduras queda fuera (B-010)
+            y_anual[iso3] = s
     y_trim = {iso3: latam.serie_crecimiento_trimestral(trim, iso3)
               for iso3 in sorted(trim.iso3.unique())}
 
@@ -190,7 +278,8 @@ def main() -> None:
         version=__version__, commit=_commit(), generado=date.today().isoformat(),
         repositorio="https://github.com/DavinsonR/macro-forecast-lab-latam",
         ruptura=list(RUPTURA),
-        paises=[dict(iso3=k, es=NOMBRE_ES.get(k, v[1]), en=NOMBRE_EN[k], trimestral=k in y_trim)
+        paises=[dict(iso3=k, es=NOMBRE_ES.get(k, v[1]), en=NOMBRE_EN[k], anual=k in y_anual,
+                    trimestral=k in y_trim)
                 for k, v in sorted(nombres.items())],
         modelos=[dict(id=ID[m], nombre=m) for m in MODELOS],
         trimestral_ajustada=sorted(trim.loc[trim.ajuste == "ajustada", "iso3"].unique().tolist()),
@@ -208,6 +297,9 @@ def main() -> None:
         "series_anual.json": _escribir("series_anual.json", anual),
         "series_trimestral.json": _escribir("series_trimestral.json", trimestral),
         "resumen.json": _escribir("resumen.json", resumen),
+        "panel.json": _escribir("panel.json", _panel(largo)),
+        "ise.json": _escribir("ise.json", _ise()),
+        "eventos.json": _escribir("eventos.json", _eventos(range(1960, 2026))),
     }
     for nombre, n in pesos.items():
         print(f"  {nombre:24s} {n / 1024:6.1f} KB")

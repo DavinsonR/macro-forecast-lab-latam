@@ -258,3 +258,33 @@ concreto, **cuánto se aleja el horizonte de un paso**.
 ver los datos (R-10). Y la hipótesis de 0.1.0 ("con datos trimestrales la red se adapta
 más rápido") **queda descartada** en su forma original: la red no mejora, empeora la
 referencia.
+
+---
+
+## B-010 · La serie de Honduras del Banco Mundial trae un empalme roto (23-sep-2026)
+
+**Síntoma.** Construyendo el panel descriptivo de la web, Honduras salió primera en
+crecimiento promedio de la región desde 1980. Su serie `NY.GDP.MKTP.KD.ZG` marca
+crecimientos reales de 21 a 29 % por año entre 1990 y 1997 (y un 11,58 idéntico en 1998
+y 1999). El PIB per cápita en dólares constantes se triplica en esos mismos años.
+
+**Diagnóstico.** No es un fenómeno económico: ninguna otra economía de la región muestra
+una racha así (se barrieron las 20 buscando tres o más años seguidos por encima de 12 %;
+solo aparece Honduras), y las cifras publicadas por otras fuentes para esa década están en
+el rango de 0 a 6 %. Es un empalme defectuoso de la serie a precios constantes en la
+fuente.
+
+**Magnitud.** Honduras entraba a la Pista D con los objetivos de 1991 en adelante: sus
+primeros siete orígenes pronosticaban crecimientos inexistentes y su error relativo al
+ingenuo se calculaba sobre ellos.
+
+**Arreglo.** `latam.DEFECTOS` declara el tramo (Honduras, 1990–1999) y
+`latam.serie_anual` lo enmascara antes de cortar el tramo contiguo. Lo que queda (2000 en
+adelante) es más corto que el mínimo de la pista, así que Honduras sale de la Pista D, que
+pasa a 19 economías. Como cada economía se evalúa por separado y con semillas fijas, las
+tablas se recalculan quitando sus filas del detalle: es idéntico a volver a correr. El
+panel web enmascara el mismo tramo y lo dice.
+
+**Regla que lo habría evitado.** R-08 extendida a la plausibilidad: antes de modelar,
+barrer cada serie buscando rachas imposibles, no solo huecos. Queda como prueba
+(`test_ninguna_racha_imposible`).

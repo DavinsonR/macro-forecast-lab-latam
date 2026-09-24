@@ -17,7 +17,7 @@ prueba el resultado de Colombia.
 >   de la "inversión" de Colombia es significativo.
 > - **Las 8 series trimestrales son ajustadas estacionalmente.** El IFS no publica la
 >   versión sin ajustar para estos países. En 0.1.0 no se declaró; ahora sí (R-05).
-> - La combinación se diseñó mirando el ISE. Fuera de él, en 28 series, no le gana al
+> - La combinación se diseñó mirando el ISE. Fuera de él, en 27 series, no le gana al
 >   AR(1) solo.
 > - "Comb. 50/50 RF-AR(1)" no era una mezcla 50/50: en el 98 % de los orígenes es AR(1)
 >   puro. Ahora se llama `Comb. RF/AR(1) umbral min`.
@@ -128,27 +128,33 @@ Colombia (+21,0 %, p Holm 0,327). Con 8 trimestres de ruptura por país no hay p
 
 ---
 
-## 4. Pista D: crecimiento anual, 20 países
+## 4. Pista D: crecimiento anual, 19 países
 
 El objetivo es la serie completa y contigua de crecimiento de cada país (B-005): 35
 orígenes en la mayoría de los países, 30 en El Salvador y 24 en Cuba.
+
+**Honduras queda fuera (B-010).** Su serie del Banco Mundial trae un empalme roto:
+crecimientos reales de 21 a 29 % por año entre 1990 y 1997, que no ocurrieron. Se
+enmascara el tramo 1990–1999 y lo que queda es demasiado corto para la pista. Hasta la
+versión 1.1.0 Honduras entraba con esos datos; quitarla movió la mediana del AR(1) de
+0,862 a 0,861 y no cambió ninguna conclusión.
 
 ### Calma
 
 | Modelo | Mediana | p Wilc | sig/n |
 |---|---|---|---|
-| **AR(1)** | **0,862** | **0,001** | 4/20 |
-| Comb. RF/AR(1) umbral min | 0,890 | 0,002 | 3/20 |
-| ARIMA(1,1,1) | 0,891 | 0,004 | 3/20 |
-| LSTM(16) | 0,919 | 0,114 | 2/20 |
-| Random Forest | 0,940 | 0,956 | 0/20 |
-| Comb. RF/AR(1) suave | 0,994 | 0,869 | 1/20 |
+| **AR(1)** | **0,861** | **< 0,001** | 4/19 |
+| Comb. RF/AR(1) umbral min | 0,880 | 0,001 | 3/19 |
+| ARIMA(1,1,1) | 0,887 | 0,004 | 3/19 |
+| LSTM(16) | 0,917 | 0,060 | 2/19 |
+| Random Forest | 0,930 | 0,679 | 0/19 |
+| Comb. RF/AR(1) suave | 0,992 | 0,595 | 1/19 |
 | *Ingenuo* | *1,000* | — | — |
 
-**Entre países el AR(1) le gana al ingenuo con claridad** (mediana 0,862, p = 0,001), y
+**Entre países el AR(1) le gana al ingenuo con claridad** (mediana 0,861, p < 0,001), y
 las dos variantes que en el fondo son AR(1) lo siguen. Los flexibles no se distinguen.
 
-País por país, el mejor modelo tiene p cruda < 0,05 en 5 de 20 (Dominicana, Ecuador,
+País por país, el mejor modelo tiene p cruda < 0,05 en 5 de 19 (Dominicana, Ecuador,
 Guatemala, Panamá y Perú). Por azar se esperaría uno. **Tras Holm no queda ninguno**: la
 menor p ajustada es 0,098 (Ecuador). La evidencia está en el agregado, no en los países.
 
@@ -159,7 +165,8 @@ ajusta con tramos de entrenamiento cortos (R-07).
 
 Ahora la ruptura anual sí contiene la caída de 2020 y el rebote de 2021: 2 objetivos por
 país. No hay Diebold-Mariano posible con dos pares. Entre países, todos los modelos salvo la deriva le
-ganan al ingenuo (medianas de 0,71 a 0,85, Wilcoxon p ≤ 0,044).
+ganan al ingenuo (medianas de 0,71 a 0,85), con Wilcoxon p < 0,05 en todos menos la
+combinación RF/ingenuo (0,073).
 
 **Eso no mide habilidad.** El ingenuo pronostica para 2021 la caída de 2020 y se come el
 rebote entero. Cualquier modelo que vuelva hacia la media le gana en ese año. Con dos
@@ -187,13 +194,13 @@ en la ruptura su ventaja (+7,9 %) no es significativa.
 
 ### Fuera del ISE, donde entra sin retocar
 
-En las 28 series de LATAM (8 trimestrales y 20 anuales), la combinación no mejora al AR(1)
+En las 27 series de LATAM (8 trimestrales y 19 anuales), la combinación no mejora al AR(1)
 solo:
 
 | | Calma C | Ruptura C | Calma D | Ruptura D |
 |---|---|---|---|---|
-| AR(1) | **0,933** | 0,894 | **0,862** | 0,829 |
-| Comb. RF/AR(1) suave | 1,099 | 0,899 | 0,994 | 0,830 |
+| AR(1) | **0,933** | 0,894 | **0,861** | 0,827 |
+| Comb. RF/AR(1) suave | 1,099 | 0,899 | 0,992 | 0,831 |
 
 En calma, donde el interruptor casi siempre va al Random Forest, la combinación hereda
 la debilidad del Random Forest fuera de Colombia. **El resultado del ISE no se replica.**
@@ -228,7 +235,7 @@ y el resumen los evaluaba solo sobre los orígenes donde sobrevivían. En Méxic
 ## 7. Qué queda establecido
 
 1. **En calma, el AR(1) le gana al ingenuo en toda la región.** En 8 de 8 países
-   trimestrales (Wilcoxon p = 0,008) y en la mediana de 20 anuales (0,862, p = 0,001).
+   trimestrales (Wilcoxon p = 0,008) y en la mediana de 19 anuales (0,861, p < 0,001).
    Es el hallazgo más robusto del laboratorio.
 2. **Ningún ranking por país sobrevive a la corrección por comparaciones múltiples**, en
    ninguna pista.

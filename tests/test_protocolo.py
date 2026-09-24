@@ -200,3 +200,28 @@ def test_veredicto_aplica_la_regla_pre_registrada():
     assert "AJUSTE" in veredicto(dict(A=False, B=True, C=True))
     assert "FUENTE" in veredicto(dict(A=False, B=False, C=True))
     assert "NO CONCLUYENTE" in veredicto(dict(A=True, B=False, C=False))
+
+
+# ------------------------------------------------------------------ B-010
+
+@pytest.mark.skipif(not (RAIZ / "datos/procesado/latam_anual.parquet").exists(),
+                    reason="falta el panel anual")
+def test_ninguna_racha_imposible():
+    """Tres o mas anios seguidos de crecimiento real por encima de 12 % no existen en la
+    region: si aparecen, es un empalme roto de la fuente y hay que declararlo en DEFECTOS."""
+    from macro_lab import latam
+    largo = pd.read_parquet(RAIZ / "datos/procesado/latam_anual.parquet")
+    for iso3 in largo.iso3.unique():
+        s = latam.serie_anual(largo, iso3)
+        racha = (s > 12).astype(int)
+        seguidos = racha.groupby((racha != racha.shift()).cumsum()).cumsum().max()
+        assert seguidos < 3, f"{iso3}: {seguidos} anios seguidos por encima de 12 %"
+
+
+def test_enmascarar_quita_solo_el_tramo_declarado():
+    from macro_lab import latam
+    largo = pd.DataFrame(dict(
+        iso3=["HND"] * 4 + ["COL"], variable=["pib_crecimiento"] * 5,
+        anio=[1989, 1990, 1999, 2000, 1995], valor=[1.0, 2.0, 3.0, 4.0, 5.0]))
+    quedan = latam.enmascarar(largo)
+    assert list(quedan.anio) == [1989, 2000, 1995]
