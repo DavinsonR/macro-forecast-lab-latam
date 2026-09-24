@@ -1,5 +1,13 @@
 # Cambios
 
+## Sin publicar
+
+### Añadido
+
+- **Contrato web** (`macro_lab/exportar_web.py`, `web/forecast-lab/`): los JSON que lee la
+  página interactiva del laboratorio en davirson.com. Alinea cada pronóstico con su período y
+  falla si no cuadra con el valor real.
+
 ## 1.1.0 · 23-sep-2026
 
 ### Añadido

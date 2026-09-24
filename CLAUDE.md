@@ -45,6 +45,7 @@ uv run python -m macro_lab.robustez       # partición por subperíodo
 uv run python -m macro_lab.lab_latam      # pistas C (trimestral) y D (anual, 20 países)
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
 uv run python -m macro_lab.lab_frecuencia   # frecuencia, ajuste o fuente (D-007)
+uv run python -m macro_lab.exportar_web     # contrato web: web/forecast-lab/*.json
 ```
 
 ```bash
@@ -67,6 +68,8 @@ cobertura y la de `p` (cruda y ajustada por Holm). CI corre ambas en cada PR.
 - `macro_lab/combinacion.py` — pesos por régimen; el interruptor solo mira el pasado
 - `macro_lab/robustez.py`, `lab_latam.py`, `lab_combinacion.py`, `lab_frecuencia.py` — corridas
 - `tests/` — pruebas del protocolo con datos sintéticos
+- `macro_lab/exportar_web.py` y `web/forecast-lab/` — el contrato con davirson.com/labs/macro-forecast;
+  se copia tal cual a `public/forecast-lab/` del sitio. Tras re-correr, re-exportar y re-copiar
 - `salidas/` — resultados versionados: resúmenes, agregados y detalle por origen
 
 ## Resultados y su fragilidad

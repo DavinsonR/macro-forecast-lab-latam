@@ -133,6 +133,15 @@ tardan del orden de una hora en un portátil.
 Salidas en `salidas/`: resúmenes con cobertura, `dm_p` y `dm_p_holm`; detalle por origen
 con el período pronosticado (`objetivo`); agregados LATAM; fronteras de cobertura.
 
+## En la web
+
+El laboratorio tiene una versión interactiva en
+[davirson.com/es/labs/macro-forecast](https://davirson.com/es/labs/macro-forecast): el visitante
+juega contra el ingenuo, mueve el origen del backtest, recorre la región y activa la corrección de
+Holm. La página no corre modelos: lee `web/forecast-lab/*.json`, que genera
+`uv run python -m macro_lab.exportar_web` a partir de `salidas/`. El exportador comprueba que cada
+pronóstico cuadre con su período y con el valor real antes de escribir.
+
 ## Pruebas
 
 ```bash
