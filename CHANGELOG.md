@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.1.0 · 23-sep-2026
 
 ### Añadido
 

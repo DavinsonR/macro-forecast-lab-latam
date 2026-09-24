@@ -1,6 +1,6 @@
 [project]
 name = "macro-forecast-lab-latam"
-version = "1.0.0"
+version = "1.1.0"
 description = "Laboratorio de modelos de pronostico del crecimiento economico agregado: Colombia y America Latina"
 requires-python = ">=3.12,<3.13"
 readme = "README.md"
