@@ -5,7 +5,9 @@ América Latina. Compara AR, MA, ARMA, ARIMA, SARIMAX, VAR, regularizados, árbo
 LSTM y CNN bajo un único protocolo de origen móvil.
 
 No es un proyecto de producción. Es un experimento cuyo producto son **tablas de error
-con su significancia**, no un pronóstico publicado.
+con su significancia**. Desde D-008 publica además un pronóstico 2026–2027 de un solo
+modelo (el AR(1), elegido por la evidencia de la Pista D), con bandas al 80 y 95 % y la
+cobertura empírica de esas bandas medida en el backtest. No es un servicio.
 
 ## Reglas duras
 
@@ -45,6 +47,7 @@ uv run python -m macro_lab.robustez       # partición por subperíodo
 uv run python -m macro_lab.lab_latam      # pistas C (trimestral) y D (anual, 20 países)
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
 uv run python -m macro_lab.lab_frecuencia   # frecuencia, ajuste o fuente (D-007)
+uv run python -m macro_lab.pronostico       # pronostico 2026-2027 con bandas y cobertura (D-008)
 uv run python -m macro_lab.exportar_web     # contrato web: web/forecast-lab/*.json
 ```
 
@@ -66,6 +69,7 @@ cobertura y la de `p` (cruda y ajustada por Holm). CI corre ambas en cada PR.
 - `macro_lab/backtest.py` — origen móvil, resumen con cobertura, Diebold-Mariano y Holm,
   `regimen()` por período pronosticado
 - `macro_lab/combinacion.py` — pesos por régimen; el interruptor solo mira el pasado
+- `macro_lab/pronostico.py` — el pronóstico publicado (D-008): AR(1), bandas y su cobertura
 - `macro_lab/robustez.py`, `lab_latam.py`, `lab_combinacion.py`, `lab_frecuencia.py` — corridas
 - `tests/` — pruebas del protocolo con datos sintéticos
 - `macro_lab/exportar_web.py` y `web/forecast-lab/` — el contrato con davirson.com/labs/macro-forecast;

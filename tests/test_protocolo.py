@@ -225,3 +225,24 @@ def test_enmascarar_quita_solo_el_tramo_declarado():
         anio=[1989, 1990, 1999, 2000, 1995], valor=[1.0, 2.0, 3.0, 4.0, 5.0]))
     quedan = latam.enmascarar(largo)
     assert list(quedan.anio) == [1989, 2000, 1995]
+
+
+# ------------------------------------------------------------------ D-008
+
+def test_bandas_del_pronostico_ordenadas_y_crecientes_con_el_horizonte():
+    from macro_lab.pronostico import bandas
+    y = _serie_anual(45).to_numpy()
+    b = bandas(y, 3)
+    assert len(b) == 3
+    for f in b:
+        assert f["lo95"] < f["lo80"] < f["media"] < f["hi80"] < f["hi95"]
+    anchos = [f["hi95"] - f["lo95"] for f in b]
+    assert anchos[0] <= anchos[1] <= anchos[2]
+
+
+def test_cobertura_empirica_es_una_proporcion_y_usa_solo_el_pasado():
+    from macro_lab.pronostico import cobertura
+    y = _serie_anual(40).to_numpy()
+    c = cobertura(y, min_ent=32)
+    assert c["n"] == 8
+    assert 0 <= c["c80"] <= c["c95"] <= 1

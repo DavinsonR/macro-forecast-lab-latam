@@ -11,6 +11,12 @@
 
 ### Añadido
 
+- **Pronóstico 2026–2027 (D-008).** `macro_lab/pronostico.py`: AR(1) por economía de la
+  Pista D, bandas al 80 y 95 % y la cobertura empírica de esas bandas en el backtest
+  (región: 92 % y 84 % en 649 orígenes). El exportador escribe `pronostico.json`. Dos
+  pruebas nuevas: bandas ordenadas y crecientes con el horizonte; la cobertura solo usa
+  el pasado.
+
 - **Panel descriptivo para la web**: `panel.json` (10 indicadores del Banco Mundial, 20
   economías), `ise.json` (16 series mensuales del ISE sin ajustar) y `eventos.json` (una
   cronología editorial de 30 choques y reformas, `macro_lab/eventos.py`, contrastada con las

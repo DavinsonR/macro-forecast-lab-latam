@@ -124,6 +124,7 @@ uv run python -m macro_lab.robustez         # partición por subperíodo
 uv run python -m macro_lab.lab_latam        # pistas C (trimestral) y D (anual, 20 países)
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
 uv run python -m macro_lab.lab_frecuencia   # ISE remuestreado a trimestral
+uv run python -m macro_lab.pronostico       # pronóstico 2026-2027 con bandas (D-008)
 ```
 
 Los datos van versionados en `datos/` (anexo ISE del DANE y caché del Banco Mundial y
@@ -141,6 +142,10 @@ juega contra el ingenuo, mueve el origen del backtest, recorre la región y acti
 Holm. La página no corre modelos: lee `web/forecast-lab/*.json`, que genera
 `uv run python -m macro_lab.exportar_web` a partir de `salidas/`. El exportador comprueba que cada
 pronóstico cuadre con su período y con el valor real antes de escribir.
+
+La página abre con un tablero descriptivo de las 20 economías y el **pronóstico 2026–2027**
+de crecimiento (`pronostico.json`): un AR(1) por economía, con bandas al 80 y 95 % y, al
+lado, cuántas veces esas bandas contuvieron el dato real en el backtest (D-008).
 
 ## Pruebas
 
@@ -166,6 +171,8 @@ corre en cada PR. Los errores encontrados y cómo se corrigieron están en
 - **No promedia modelos elegidos por su desempeño en la misma muestra donde se miden.**
 - **No presenta un ganador sin decir por cuánto gana y si esa diferencia es
   significativa.**
+- **No publica una banda sin medir si cumple.** El pronóstico 2026–2027 va con la
+  cobertura empírica de sus bandas, economía por economía.
 
 ## Licencias
 
