@@ -251,9 +251,8 @@ def pista_d() -> None:
     for iso3 in sorted(largo.iso3.unique()):
         # El catalogo es univariado: el objetivo no se recorta al panel de ~20 variables,
         # que solo decide la muestra de los modelos que las usan (B-005).
-        serie = (largo[(largo.iso3 == iso3) & (largo.variable == "pib_crecimiento")]
-                 .set_index("anio").valor.sort_index())
-        y = datos.tramo_contiguo(serie).rename(iso3)
+        # Sin los tramos rotos de la fuente (B-010): Honduras queda corta y sale.
+        y = latam.serie_anual(largo, iso3).rename(iso3)
         if y.empty:
             print(f"  {iso3:18s} sin serie de crecimiento")
             continue

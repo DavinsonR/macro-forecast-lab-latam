@@ -62,6 +62,30 @@ def _json(url: str, intentos: int = 3, espera: float = 2.0, timeout: int = 45):
     return None
 
 
+# Tramos de la fuente que se sabe que estan rotos (B-010). Se enmascaran antes de cortar
+# el tramo contiguo: un dato imposible no se corrige ni se interpola, se quita.
+DEFECTOS: dict[tuple[str, str], tuple[int, int]] = {
+    ("HND", "pib_crecimiento"): (1990, 1999),
+    ("HND", "pib_per_capita"): (1990, 1999),
+    ("HND", "pib_real"): (1990, 1999),
+}
+
+
+def enmascarar(largo: pd.DataFrame) -> pd.DataFrame:
+    """El panel largo sin los tramos declarados en DEFECTOS."""
+    fuera = pd.Series(False, index=largo.index)
+    for (iso3, var), (a, b) in DEFECTOS.items():
+        fuera |= (largo.iso3 == iso3) & (largo.variable == var) & largo.anio.between(a, b)
+    return largo[~fuera]
+
+
+def serie_anual(largo: pd.DataFrame, iso3: str, variable: str = "pib_crecimiento") -> pd.Series:
+    """Una variable anual de una economia, sin defectos declarados y en su tramo contiguo."""
+    s = (enmascarar(largo).query("iso3 == @iso3 and variable == @variable")
+         .set_index("anio").valor.sort_index())
+    return tramo_contiguo(s)
+
+
 # ------------------------------------------------------------------ Pista A LATAM
 
 def descargar_anual_latam(indicadores: dict[str, str], forzar: bool = False) -> pd.DataFrame:

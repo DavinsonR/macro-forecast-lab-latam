@@ -191,7 +191,7 @@ Ver **[RESULTADOS.md](RESULTADOS.md)** para las tablas completas. En una línea:
 20 países, el mismo protocolo. Ver **[RESULTADOS_LATAM.md](RESULTADOS_LATAM.md)**.
 
 > El resultado más robusto es modesto: **en calma, el AR(1) le gana al ingenuo en toda la
-> región** (8 de 8 países trimestrales; mediana 0,86 del error del ingenuo en 20 anuales,
+> región** (8 de 8 países trimestrales; mediana 0,86 del error del ingenuo en 19 anuales,
 > Wilcoxon p = 0,001). Ningún ranking por país sobrevive a Holm. La combinación por
 > régimen que funcionaba en el ISE no se replica fuera de él. La frontera de cobertura sí
 > generaliza: en 17 de 20 países, exigir las 33 variables deja cero años completos.

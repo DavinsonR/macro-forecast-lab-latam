@@ -2,7 +2,19 @@
 
 ## Sin publicar
 
+### Corregido
+
+- **Honduras fuera de la Pista D (B-010).** La serie del Banco Mundial trae crecimientos
+  reales de 21 a 29 % entre 1990 y 1997, un empalme roto. `latam.DEFECTOS` enmascara el
+  tramo; la pista queda en 19 economías. AR(1) en calma: 0,862 → 0,861, p < 0,001. Una
+  prueba barre ahora las rachas imposibles.
+
 ### Añadido
+
+- **Panel descriptivo para la web**: `panel.json` (10 indicadores del Banco Mundial, 20
+  economías), `ise.json` (16 series mensuales del ISE sin ajustar) y `eventos.json` (una
+  cronología editorial de 30 choques y reformas, `macro_lab/eventos.py`, contrastada con las
+  series).
 
 - **Contrato web** (`macro_lab/exportar_web.py`, `web/forecast-lab/`): los JSON que lee la
   página interactiva del laboratorio en davirson.com. Alinea cada pronóstico con su período y
