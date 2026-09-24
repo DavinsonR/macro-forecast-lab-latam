@@ -1,5 +1,16 @@
 # Cambios
 
+## Sin publicar
+
+### Añadido
+
+- **Experimento de frecuencia (D-007).** `lab_frecuencia` remuestrea el ISE a trimestral
+  y separa frecuencia, ajuste y fuente en la ruptura de Colombia, con predicciones
+  registradas antes de correr. Resultado: manda la frecuencia, por la vía de la
+  referencia. El ingenuo pasa de 4,0 pp de error a un mes vista a 7,7 pp a un trimestre
+  vista, mientras el LSTM se queda en torno a 6 pp.
+- `datos.a_trimestral` y `serie_ise(cuadro=...)`.
+
 ## 1.0.0 · 23-sep-2026
 
 Primer release público. Sale de una auditoría del protocolo que encontró errores capaces

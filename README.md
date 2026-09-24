@@ -123,6 +123,7 @@ uv run python -m macro_lab.main             # pistas A (anual COL) y B (ISE mens
 uv run python -m macro_lab.robustez         # partición por subperíodo
 uv run python -m macro_lab.lab_latam        # pistas C (trimestral) y D (anual, 20 países)
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
+uv run python -m macro_lab.lab_frecuencia   # ISE remuestreado a trimestral
 ```
 
 Los datos van versionados en `datos/` (anexo ISE del DANE y caché del Banco Mundial y

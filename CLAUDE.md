@@ -44,6 +44,7 @@ uv run python -m macro_lab.main           # pistas A (anual COL) y B (ISE mensua
 uv run python -m macro_lab.robustez       # partición por subperíodo
 uv run python -m macro_lab.lab_latam      # pistas C (trimestral) y D (anual, 20 países)
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
+uv run python -m macro_lab.lab_frecuencia   # frecuencia, ajuste o fuente (D-007)
 ```
 
 ```bash
@@ -64,14 +65,17 @@ cobertura y la de `p` (cruda y ajustada por Holm). CI corre ambas en cada PR.
 - `macro_lab/backtest.py` — origen móvil, resumen con cobertura, Diebold-Mariano y Holm,
   `regimen()` por período pronosticado
 - `macro_lab/combinacion.py` — pesos por régimen; el interruptor solo mira el pasado
-- `macro_lab/robustez.py`, `lab_latam.py`, `lab_combinacion.py` — corridas
+- `macro_lab/robustez.py`, `lab_latam.py`, `lab_combinacion.py`, `lab_frecuencia.py` — corridas
 - `tests/` — pruebas del protocolo con datos sintéticos
 - `salidas/` — resultados versionados: resúmenes, agregados y detalle por origen
 
 ## Resultados y su fragilidad
 
-`RESULTADOS.md` (Colombia) y `RESULTADOS_LATAM.md` (región). El hallazgo central del
-segundo es que el del primero **no se replica: se invierte**. Cualquier cambio que toque
+`RESULTADOS.md` (Colombia) y `RESULTADOS_LATAM.md` (región). Desde 1.0.0 casi nada
+sobrevive a Holm; lo robusto es que **en calma el AR(1) le gana al ingenuo en toda la
+región**. La aparente inversión de Colombia entre frecuencias la produce la referencia:
+el ingenuo es mucho más difícil de batir a un mes vista que a un trimestre (D-007).
+Cualquier cambio que toque
 los modelos o el protocolo debe volver a correr ambos y actualizar los dos documentos.
 
 ## Fuentes y licencias

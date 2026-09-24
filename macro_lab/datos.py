@@ -233,10 +233,22 @@ def parsear_ise(ruta_xlsx: Path, cuadro: str = "Cuadro 1") -> pd.DataFrame:
     return df.sort_index()
 
 
-def serie_ise(ruta_xlsx: Path) -> pd.Series:
-    """Solo el agregado: el ISE total, mensual."""
-    df = parsear_ise(ruta_xlsx)
+def serie_ise(ruta_xlsx: Path, cuadro: str = "Cuadro 1") -> pd.Series:
+    """Solo el agregado: el ISE total, mensual. Por defecto sin ajuste (ver `parsear_ise`)."""
+    df = parsear_ise(ruta_xlsx, cuadro)
     columna = [c for c in df.columns if c.lower().startswith("indicador de seguimiento")]
     if not columna:
         raise ValueError(f"no encuentro el agregado en {list(df.columns)}")
     return df[columna[0]].rename("ise").dropna()
+
+
+def a_trimestral(mensual: pd.Series) -> pd.Series:
+    """Indice mensual a trimestral: promedio de los tres meses de cada trimestre.
+
+    Es agregar de alta a baja frecuencia, no rellenar (R-03). Un trimestre con menos de
+    tres meses se descarta: promediarlo con los que haya mezclaria trimestres distintos.
+    """
+    trimestres = mensual.index.to_period("Q")
+    grupos = mensual.groupby(trimestres)
+    completos = grupos.size() == 3
+    return grupos.mean()[completos].rename(mensual.name)

@@ -44,9 +44,35 @@ modesto que lo publicado en 0.1.0: la misma familia de modelos, en la misma econ
 mismo período, apunta en sentidos contrarios según la fuente y la frecuencia, y con esta
 cantidad de datos ninguna de las dos direcciones se puede afirmar.
 
-Además, las dos series difieren en algo más que la frecuencia: una está sin ajustar y la
-otra ajustada estacionalmente. Separar esos dos efectos requeriría remuestrear el ISE a
-trimestral. Es el siguiente experimento, no una conclusión.
+### Qué lo produce: el ISE remuestreado a trimestral
+
+Las dos series difieren en frecuencia, fuente y ajuste a la vez. El experimento de
+`macro_lab/lab_frecuencia.py` las separa con tres brazos trimestrales sobre la misma
+muestra (2006T1–2025T1, 37 orígenes) y el catálogo de la Pista C. Las predicciones se
+registraron antes de correr (D-007 en la bitácora).
+
+| Brazo | Frecuencia | Ajuste | LSTM vs ingenuo en la ruptura | p | p Holm |
+|---|---|---|---|---|---|
+| ISE (Pista B) | mensual | sin ajuste | −62,2 % | 0,019 | 0,24 |
+| A · ISE | trimestral | sin ajuste | +21,8 % | 0,049 | 0,59 |
+| B · ISE | trimestral | ajustado | +17,6 % | 0,094 | 1,00 |
+| C · PIB FMI | trimestral | ajustado | +21,0 % | 0,027 | 0,33 |
+
+**Manda la frecuencia.** Con la misma serie sin ajustar, pasar de mensual a trimestral
+invierte el signo; ni el ajuste (A contra B) ni la fuente (B contra C) lo mueven. El
+brazo C reproduce la cifra de la Pista C, lo que valida el montaje.
+
+**El mecanismo es la referencia, no la red.** El LSTM se equivoca parecido en las dos
+frecuencias (MAE de 6,5 pp mensual y 6,0 pp trimestral). El ingenuo, en cambio, pasa de
+4,0 pp a un mes vista a 7,7 pp a un trimestre vista: en plena caída, "igual que el mes
+pasado" es muy difícil de batir, y "igual que el trimestre pasado" no. La hipótesis de
+0.1.0, que la red "se adapta más rápido" con datos trimestrales, queda descartada.
+
+Todo esto es dirección, no significancia: ocho trimestres de ruptura por brazo y un
+período elegido después de ver los datos (R-10). La lección que sí generaliza es de
+método: **una ganancia sobre el ingenuo depende de qué tan lejos queda el paso
+siguiente**, y comparar rankings entre frecuencias sin decirlo compara referencias
+distintas.
 
 ---
 
@@ -212,8 +238,9 @@ y el resumen los evaluaba solo sobre los orígenes donde sobrevivían. En Méxic
 
 ## Qué NO queda establecido
 
-- Que el resultado de Colombia "se invierta". Las dos direcciones son opuestas y ninguna
-  es significativa tras Holm.
+- Que el resultado de Colombia "se invierta" por algo del modelo. Las dos direcciones son
+  opuestas, ninguna es significativa tras Holm, y el experimento de frecuencia muestra
+  que lo que cambia es la dificultad de la referencia.
 - Que las redes sirvan o no sirvan en la ruptura trimestral: 5 de 8 victorias, 0
   significativas.
 - Nada sobre la habilidad de los modelos en la ruptura anual: dos observaciones por país
@@ -224,8 +251,9 @@ y el resumen los evaluaba solo sobre los orígenes donde sobrevivían. En Méxic
 ```bash
 uv run python -m macro_lab.lab_latam        # pistas C y D, frontera LATAM
 uv run python -m macro_lab.lab_combinacion  # combinación por régimen
+uv run python -m macro_lab.lab_frecuencia   # ISE remuestreado a trimestral (D-007)
 ```
 
 Salidas: `pista_{c,d}_detalle.csv`, `pista_{c,d}_por_pais.csv`,
 `pista_{c,d}_relativo_pais.csv`, `pista_{c,d}_agregado.csv`, `frontera_latam.csv`,
-`combinacion_*.csv`.
+`combinacion_*.csv`, `frecuencia_*.csv`.

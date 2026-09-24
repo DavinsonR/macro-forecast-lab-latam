@@ -181,3 +181,22 @@ def test_ise_se_lee_del_cuadro_sin_ajuste():
     assert ise.notna().all()
     assert ise.index.is_monotonic_increasing
     assert (ise.index.to_series().diff().dropna().dt.days.between(28, 31)).all()
+
+
+# ------------------------------------------------------------------ R-03 / D-007
+
+def test_a_trimestral_promedia_y_descarta_trimestres_incompletos():
+    idx = pd.date_range("2020-01-01", periods=8, freq="MS")  # 2020T1, T2 y 2 meses de T3
+    s = pd.Series(np.arange(1.0, 9.0), index=idx, name="ise")
+    q = datos.a_trimestral(s)
+    assert list(q.index.astype(str)) == ["2020Q1", "2020Q2"]
+    assert q.tolist() == [2.0, 5.0]
+    assert q.name == "ise"
+
+
+def test_veredicto_aplica_la_regla_pre_registrada():
+    from macro_lab.lab_frecuencia import veredicto
+    assert "FRECUENCIA" in veredicto(dict(A=True, B=True, C=True))
+    assert "AJUSTE" in veredicto(dict(A=False, B=True, C=True))
+    assert "FUENTE" in veredicto(dict(A=False, B=False, C=True))
+    assert "NO CONCLUYENTE" in veredicto(dict(A=True, B=False, C=False))
